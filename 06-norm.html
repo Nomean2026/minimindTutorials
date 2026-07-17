@@ -23,11 +23,17 @@
   .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
   @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
   .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
-  .code-panel .code-side .comment { color: #94a3b8; }
-  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .comment { color: #94a3b8; font-style: italic; }
+  .code-panel .code-side .keyword { color: #818cf8; font-weight: 600; }
   .code-panel .code-side .string { color: #34d399; }
   .code-panel .code-side .number { color: #f472b6; }
   .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .code-side .class-name { color: #fbbf24; }
+  .code-panel .code-side .decorator { color: #a78bfa; }
+  .code-panel .code-side .operator { color: #f87171; }
+  .code-panel .code-side .builtin { color: #e879f9; }
+  .code-panel .code-side .type { color: #2dd4bf; }
+  .code-panel .code-side .param { color: #fbbf24; }
   .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
   .code-panel .explain-side p { margin-bottom: 10px; }
   .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
@@ -190,5 +196,22 @@
 </div>
 </div>
 <div class="footer"><p>MiniMind 教程 · 第 06 章 · 层归一化</p></div>
+
+<!-- auto_mark_script -->
+<script>
+(function() {
+  try {
+    var idx = parseInt(document.title.match(/\d+/)?.[0] || '0');
+    if (idx > 0) {
+      var key = 'minimind_tutorial_progress';
+      var raw = localStorage.getItem(key);
+      var p = raw ? JSON.parse(raw) : {};
+      p[idx] = true;
+      localStorage.setItem(key, JSON.stringify(p));
+    }
+  } catch(e) { /* ignore */ }
+})();
+</script>
+
 </body>
 </html>

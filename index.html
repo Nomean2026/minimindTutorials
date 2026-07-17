@@ -4,10 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MiniMind 大模型训练教程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --primary: #2563eb;
     --primary-light: #dbeafe;
+    --primary-dark: #1d4ed8;
     --accent: #f59e0b;
     --bg: #ffffff;
     --bg-card: #f8fafc;
@@ -15,11 +19,16 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --success: #10b981;
-    --code-bg: #f1f5f9;
+    --success-light: #d1fae5;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --star-color: #f59e0b;
+    --radius: 12px;
+    --transition: 0.2s ease;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
     background: var(--bg);
     color: var(--text);
     line-height: 1.7;
@@ -29,9 +38,21 @@
     color: #fff;
     padding: 60px 20px;
     text-align: center;
+    position: relative;
+    overflow: hidden;
   }
-  .hero h1 { font-size: 2.5rem; margin-bottom: 16px; }
-  .hero p { font-size: 1.1rem; opacity: 0.9; max-width: 700px; margin: 0 auto; }
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero h1 { font-size: 2.5rem; margin-bottom: 16px; position: relative; z-index: 1; }
+  .hero p { font-size: 1.1rem; opacity: 0.9; max-width: 700px; margin: 0 auto; position: relative; z-index: 1; }
   .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
   .section-title {
     font-size: 1.5rem;
@@ -47,10 +68,26 @@
     font-size: 0.85rem;
     font-weight: 600;
     margin-bottom: 20px;
+    transition: var(--transition);
   }
   .phase-done { background: #d1fae5; color: #065f46; }
   .phase-current { background: #fef3c7; color: #92400e; }
   .phase-future { background: #e2e8f0; color: #475569; }
+
+  /* ---- 进度统计 ---- */
+  .stats {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin: 30px 0;
+  }
+  .stats-item { text-align: center; flex: 1; min-width: 120px; }
+  .stats-item .num { font-size: 2rem; font-weight: 700; color: var(--primary); transition: var(--transition); }
+  .stats-item .label { font-size: 0.85rem; color: var(--text-muted); }
+
+  /* ---- 卡片网格 ---- */
   .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -59,25 +96,30 @@
   }
   .card {
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
     padding: 20px;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), background var(--transition);
     text-decoration: none;
     color: inherit;
     display: block;
     position: relative;
+    cursor: pointer;
+    user-select: none;
   }
   .card:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  .card:active {
+    transform: translateY(-1px) scale(0.98);
   }
   .card .num {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-bottom: 6px;
   }
-  .card h3 { font-size: 1.05rem; margin-bottom: 8px; color: var(--primary); }
+  .card h3 { font-size: 1.05rem; margin-bottom: 8px; color: var(--primary); transition: color var(--transition); }
   .card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
   .card .tag {
     display: inline-block;
@@ -86,27 +128,141 @@
     font-size: 0.75rem;
     font-weight: 600;
     margin-top: 10px;
+    transition: var(--transition);
+    pointer-events: none;
   }
-  .tag-done { background: #d1fae5; color: #065f46; }
+
+  /* 勾选按钮（右上角） */
+  .card .toggle-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all var(--transition);
+    opacity: 0;
+    z-index: 2;
+    line-height: 1;
+    padding: 0;
+    color: var(--text-muted);
+  }
+  .card:hover .toggle-btn {
+    opacity: 1;
+  }
+  .card .toggle-btn:hover {
+    transform: scale(1.2);
+    border-color: var(--success);
+  }
+  .card.completed .toggle-btn {
+    opacity: 1;
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+  .card.completed .toggle-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+  }
+  .tag-done { background: var(--success-light); color: #065f46; }
   .tag-current { background: #fef3c7; color: #92400e; }
   .tag-future { background: #e2e8f0; color: #475569; }
-  .card .lock-icon { opacity: 0.4; font-size: 0.8rem; }
-  .stats {
-    display: flex; gap: 24px; flex-wrap: wrap;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin: 30px 0;
+
+  /* 已完成卡片样式 */
+  .card.completed {
+    border-color: var(--success);
+    background: #f0fdf4;
   }
-  .stats-item { text-align: center; flex: 1; min-width: 120px; }
-  .stats-item .num { font-size: 2rem; font-weight: 700; color: var(--primary); }
-  .stats-item .label { font-size: 0.85rem; color: var(--text-muted); }
+  .card.completed h3 {
+    color: #065f46;
+  }
+  .card.completed .num::before {
+    content: '✅ ';
+  }
+
+  /* 未学卡片样式 */
+  .card.pending {
+    border-color: var(--border);
+    opacity: 0.85;
+  }
+  .card.pending:hover {
+    opacity: 1;
+  }
+
+  /* 重置按钮 */
+  .reset-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: inherit;
+  }
+  .reset-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+  }
+
+  /* ---- 进度条 ---- */
+  .progress-wrapper {
+    margin: 20px 0 30px;
+  }
+  .progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--success), #34d399);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+  .progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
   .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+  .footer a { color: var(--primary); }
+
   @media (max-width: 640px) {
     .hero h1 { font-size: 1.8rem; }
     .card-grid { grid-template-columns: 1fr; }
   }
+
+  /* ---- 代码高亮增强 ---- */
+  .code-panel .code-side .comment { color: #94a3b8; font-style: italic; }
+  .code-panel .code-side .keyword { color: #818cf8; font-weight: 600; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .code-side .class-name { color: #fbbf24; }
+  .code-panel .code-side .decorator { color: #a78bfa; }
+  .code-panel .code-side .operator { color: #f87171; }
+  .code-panel .code-side .builtin { color: #e879f9; }
+  .code-panel .code-side .type { color: #2dd4bf; }
+  .code-panel .code-side .param { color: #fbbf24; }
 </style>
 </head>
 <body>
@@ -121,190 +277,225 @@
   <!-- 进度统计 -->
   <div class="stats">
     <div class="stats-item">
-      <div class="num">24</div>
+      <div class="num" id="stat-done">0</div>
       <div class="label">✅ 已完成</div>
     </div>
     <div class="stats-item">
-      <div class="num" style="color:var(--accent)">0</div>
-      <div class="label">🎯 进行中</div>
+      <div class="num" id="stat-total">24</div>
+      <div class="label">📋 总课程</div>
     </div>
     <div class="stats-item">
-      <div class="num" style="color:#94a3b8">0</div>
-      <div class="label">📋 待学习</div>
+      <div class="num" id="stat-progress-pct" style="color:var(--success)">0%</div>
+      <div class="label">📈 完成度</div>
+    </div>
+  </div>
+
+  <!-- 进度条 -->
+  <div class="progress-wrapper">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="progress-text">
+      <span id="progress-label">0 / 24 已学</span>
+      <button class="reset-btn" onclick="resetAllProgress()">↻ 重置进度</button>
     </div>
   </div>
 
   <!-- ==================== 阶段一：基础篇 ==================== -->
-  <span class="phase-badge phase-done">✅ 阶段一 · 已学完</span>
+  <span class="phase-badge phase-done">✅ 阶段一 · 基础篇</span>
   <h2 class="section-title">📐 基础篇：从零搭建最小 Transformer</h2>
-  <div class="card-grid">
-    <a class="card" href="01-overview.html">
+  <div class="card-grid" data-phase="1">
+    <a class="card" href="01-overview.html" data-idx="1">
       <div class="num">01</div>
       <h3>🌏 大模型概览</h3>
       <p>什么是语言模型？MiniMind 整体架构鸟瞰，从输入到输出的完整流程。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="1" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="02-embedding.html">
+    <a class="card" href="02-embedding.html" data-idx="2">
       <div class="num">02</div>
       <h3>🔤 词嵌入</h3>
       <p>Token Embedding：把离散的 token 映射为连续的向量空间。权重绑定技巧。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="2" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="03-attention.html">
+    <a class="card" href="03-attention.html" data-idx="3">
       <div class="num">03</div>
       <h3>👁️ 注意力机制</h3>
       <p>Scaled Dot-Product Attention、GQA、Causal Mask，QKV 的奥秘。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="3" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="04-rope.html">
+    <a class="card" href="04-rope.html" data-idx="4">
       <div class="num">04</div>
       <h3>🔄 RoPE 位置编码</h3>
       <p>旋转位置编码——让模型"知道"token 的前后顺序，相对位置编码。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="4" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="05-ffn.html">
+    <a class="card" href="05-ffn.html" data-idx="5">
       <div class="num">05</div>
       <h3>⚡ 前馈网络</h3>
       <p>SwiGLU 门控 FFN，SiLU 激活函数。FFN 占模型 46% 的参数。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="5" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="06-norm.html">
+    <a class="card" href="06-norm.html" data-idx="6">
       <div class="num">06</div>
       <h3>📊 层归一化</h3>
       <p>RMSNorm vs LayerNorm：MiniMind 中 4 处 RMSNorm 的作用。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="6" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="07-model-assembly.html">
+    <a class="card" href="07-model-assembly.html" data-idx="7">
       <div class="num">07</div>
       <h3>🧩 完整模型组装</h3>
       <p>MiniMindModel + MiniMindForCausalLM：三层嵌套架构全解。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="7" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="08-pretrain.html">
+    <a class="card" href="08-pretrain.html" data-idx="8">
       <div class="num">08</div>
       <h3>🏋️ 预训练实战</h3>
       <p>PretrainDataset、Cosine LR 调度、混合精度训练循环。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="8" title="切换学习状态">✓</button>
     </a>
   </div>
 
   <!-- ==================== 阶段二：SFT 篇 ==================== -->
-  <span class="phase-badge phase-done">✅ 阶段二 · 已学完</span>
+  <span class="phase-badge phase-done">✅ 阶段二 · SFT 篇</span>
   <h2 class="section-title">💬 SFT 篇：监督微调</h2>
-  <div class="card-grid">
-    <a class="card" href="09-sft-overview.html">
+  <div class="card-grid" data-phase="2">
+    <a class="card" href="09-sft-overview.html" data-idx="9">
       <div class="num">09</div>
       <h3>🎯 SFT 概览</h3>
       <p>从预训练到 SFT：为什么要微调？Pretrain vs SFT 的核心区别快速对比。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="9" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="10-sft-data-pipeline.html">
+    <a class="card" href="10-sft-data-pipeline.html" data-idx="10">
       <div class="num">10</div>
       <h3>📦 SFT 数据构建</h3>
       <p>Chat Template、损失掩码、对话格式——SFT 数据长什么样？</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="10" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="11-sft-vs-pretrain.html">
+    <a class="card" href="11-sft-vs-pretrain.html" data-idx="11">
       <div class="num">11</div>
       <h3>⚖️ SFT vs Pretrain 对比</h3>
       <p>数据、损失、学习率、训练策略——一个表格说清所有区别。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="11" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="12-sft-inference.html">
+    <a class="card" href="12-sft-inference.html" data-idx="12">
       <div class="num">12</div>
       <h3>🎲 SFT 推理生成</h3>
       <p>采样策略解密：top-k、top-p、temperature，让模型不只会"背诵"。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="12" title="切换学习状态">✓</button>
     </a>
   </div>
 
   <!-- ==================== 阶段三：MoE 篇 ==================== -->
-  <span class="phase-badge phase-done">✅ 阶段三 · 已学完</span>
+  <span class="phase-badge phase-done">✅ 阶段三 · MoE 篇</span>
   <h2 class="section-title">🧠 MoE 篇：混合专家模型</h2>
-  <div class="card-grid">
-    <a class="card" href="13-moe-intro.html">
+  <div class="card-grid" data-phase="3">
+    <a class="card" href="13-moe-intro.html" data-idx="13">
       <div class="num">13</div>
       <h3>🔬 MoE 概念入门</h3>
       <p>Dense vs MoE：参数量与计算量的博弈，"天下没有白来的午餐"。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="13" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="14-moe-routing.html">
+    <a class="card" href="14-moe-routing.html" data-idx="14">
       <div class="num">14</div>
       <h3>🚦 路由网络详解</h3>
       <p>Gating Network 的工作原理，Top-K 选择的具体实现。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="14" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="15-moe-load-balancing.html">
+    <a class="card" href="15-moe-load-balancing.html" data-idx="15">
       <div class="num">15</div>
       <h3>⚖️ 负载均衡</h3>
       <p>专家坍塌问题 + Load Balancing Loss 公式推导与代码实现。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="15" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="16-moe-z-loss.html">
+    <a class="card" href="16-moe-z-loss.html" data-idx="16">
       <div class="num">16</div>
       <h3>🛡️ Z-Loss 正则项</h3>
       <p>梯度稳定性问题，Z-Loss 如何防止 logits 无限放大。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="16" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="17-moe-cold-start.html">
+    <a class="card" href="17-moe-cold-start.html" data-idx="17">
       <div class="num">17</div>
       <h3>❄️ 冷启动训练</h3>
       <p>Two-Stage Training + Router Warm-up：让每个专家"见见世面"。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="17" title="切换学习状态">✓</button>
     </a>
   </div>
 
   <!-- ==================== 阶段四：RLHF 篇 ==================== -->
-  <span class="phase-badge phase-done">✅ 阶段四 · 已学完</span>
+  <span class="phase-badge phase-done">✅ 阶段四 · RLHF 篇</span>
   <h2 class="section-title">🎯 RLHF 篇：从人类反馈中学习</h2>
-  <div class="card-grid">
-    <a class="card" href="18-rlhf-overview.html">
+  <div class="card-grid" data-phase="4">
+    <a class="card" href="18-rlhf-overview.html" data-idx="18">
       <div class="num">18</div>
       <h3>🎯 RLHF 总览</h3>
       <p>RLHF 发展史、三阶段总览、Reward Model、PPO/DPO/GRPO 全景对比。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="18" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="19-dpo-theory.html">
+    <a class="card" href="19-dpo-theory.html" data-idx="19">
       <div class="num">19</div>
       <h3>🎯 DPO 原理与实现</h3>
       <p>Direct Preference Optimization，不用强化学习的偏好对齐，公式推导 + 代码实现。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="19" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="20-ppo-theory.html">
+    <a class="card" href="20-ppo-theory.html" data-idx="20">
       <div class="num">20</div>
       <h3>🔄 PPO 原理与实现</h3>
       <p>Proximal Policy Optimization，Actor-Critic、GAE、PPO-Clip，MiniMind 完整实现。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="20" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="21-grpo-theory.html">
+    <a class="card" href="21-grpo-theory.html" data-idx="21">
       <div class="num">21</div>
       <h3>⚡ GRPO 原理与实现</h3>
       <p>Group Relative Policy Optimization，去掉 Critic 的 PPO，DeepSeek-R1 的训练秘诀。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="21" title="切换学习状态">✓</button>
     </a>
   </div>
 
   <!-- ==================== 阶段五：进阶篇 ==================== -->
-  <span class="phase-badge phase-done">✅ 阶段五 · 已学完</span>
+  <span class="phase-badge phase-done">✅ 阶段五 · 进阶篇</span>
   <h2 class="section-title">🚀 进阶篇</h2>
-  <div class="card-grid">
-    <a class="card" href="22-lora-theory.html">
+  <div class="card-grid" data-phase="5">
+    <a class="card" href="22-lora-theory.html" data-idx="22">
       <div class="num">22</div>
       <h3>🎛️ LoRA 微调</h3>
       <p>低秩适配的原理与实现，用一张小卡片微调大模型。MiniMind LoRA 模块完整解读。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="22" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="23-distillation.html">
+    <a class="card" href="23-distillation.html" data-idx="23">
       <div class="num">23</div>
       <h3>🧪 知识蒸馏</h3>
       <p>大模型教小模型，Soft/Hard Target 蒸馏 + MiniMind 蒸馏实践。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="23" title="切换学习状态">✓</button>
     </a>
-    <a class="card" href="24-inference-optimization.html">
+    <a class="card" href="24-inference-optimization.html" data-idx="24">
       <div class="num">24</div>
       <h3>⚡ 推理优化</h3>
       <p>KV Cache、Flash Attention、量化，让模型跑得更快。</p>
-      <span class="tag tag-done">✅ 已学</span>
+      <span class="tag">未学</span>
+      <button class="toggle-btn" data-idx="24" title="切换学习状态">✓</button>
     </a>
   </div>
 
@@ -315,8 +506,131 @@
 </div>
 
 <div class="footer">
-  <p>基于 <a href="https://github.com/jingyaogong/minimind" target="_blank" style="color:var(--primary)">MiniMind</a> 项目 &bull; 用 ❤️ 和 🤖 制作</p>
+  <p>基于 <a href="https://github.com/jingyaogong/minimind" target="_blank">MiniMind</a> 项目 &bull; 用 ❤ 和 🤖 制作</p>
 </div>
 
+<script>
+// ========== 学习进度管理 ==========
+
+const STORAGE_KEY = 'minimind_tutorial_progress';
+
+function getProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveProgress(progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+function markDone(idx) {
+  const p = getProgress();
+  p[idx] = true;
+  saveProgress(p);
+  refreshUI();
+}
+
+function markUndone(idx) {
+  const p = getProgress();
+  delete p[idx];
+  saveProgress(p);
+  refreshUI();
+}
+
+function toggleCard(idx) {
+  const p = getProgress();
+  if (p[idx]) {
+    delete p[idx];
+  } else {
+    p[idx] = true;
+  }
+  saveProgress(p);
+  refreshUI();
+}
+
+function resetAllProgress() {
+  if (!confirm('确定要重置所有学习进度吗？')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  refreshUI();
+}
+
+// ========== 渲染界面 ==========
+
+function refreshUI() {
+  const progress = getProgress();
+  const cards = document.querySelectorAll('.card');
+  let doneCount = 0;
+  const total = cards.length;
+
+  cards.forEach(card => {
+    const idx = card.dataset.idx;
+    const isDone = !!progress[idx];
+    const tag = card.querySelector('.tag');
+
+    card.classList.remove('completed', 'pending');
+    if (isDone) {
+      card.classList.add('completed');
+      tag.textContent = '✅ 已学';
+      tag.className = 'tag tag-done';
+      doneCount++;
+    } else {
+      card.classList.add('pending');
+      tag.textContent = '📖 未学';
+      tag.className = 'tag tag-future';
+    }
+  });
+
+  // 更新统计
+  document.getElementById('stat-done').textContent = doneCount;
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+  document.getElementById('stat-progress-pct').textContent = pct + '%';
+
+  // 更新进度条
+  const fill = document.getElementById('progress-fill');
+  fill.style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${doneCount} / ${total} 已学`;
+}
+
+// ========== 事件 ==========
+
+document.addEventListener('DOMContentLoaded', function() {
+  refreshUI();
+
+  // 点击卡片 → 正常链接跳转到教程页（浏览器默认行为）
+  // 点击勾选按钮 → 仅切换学习状态，不跳转
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();  // 阻止事件冒泡到 <a>
+      e.preventDefault();   // 阻止 <a> 的链接跳转
+      const idx = this.dataset.idx;
+      toggleCard(idx);
+    });
+  });
+
+  // 中键点击卡片 → 新标签打开并标记已学
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('auxclick', function(e) {
+      if (e.button === 1) {
+        markDone(this.dataset.idx);
+        // 允许默认行为：新标签打开
+      }
+    });
+  });
+
+  // 键盘辅助：聚焦卡片时 Enter 跳转，聚焦 toggle 按钮时 Space/Enter 切换
+  document.querySelectorAll('.card').forEach(card => {
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'link');
+    card.setAttribute('aria-label', card.querySelector('h3')?.textContent || '教程卡片');
+  });
+});
+
+// 来自其他页面的存储变化同步
+window.addEventListener('storage', function(e) {
+  if (e.key === STORAGE_KEY) refreshUI();
+});
+</script>
 </body>
 </html>
