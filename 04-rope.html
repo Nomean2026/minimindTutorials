@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 - RoPE 位置编码 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .code-panel .explain-side .highlight-purple { background: #f3e8ff; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; font-size: 1.05rem; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="03-attention.html">← 上一章</a>
+  <a href="05-ffn.html">下一章 →</a>
+  <span class="title">第 04 章 · RoPE 位置编码</span>
+</div>
+<div class="container">
+
+<h1>🔄 旋转位置编码（RoPE）</h1>
+<p class="subtitle">"让模型知道词的前后顺序——不靠加，而靠转"</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：Attention 的核心是 Q 和 K 的点积。但如果 Q 和 K 不知道自己在序列中的位置，"我爱你"和"你爱我"对 Attention 来说就是一样的！位置编码就是用来解决这个问题的。
+</div>
+
+<h2>💡 问题：Attention 本身不感知位置</h2>
+
+<p>Attention 的计算 <span class="math">QK<sup>T</sup></span> 是对序列中所有 token 同时做的，它天生是 <strong>置换等变</strong>（permutation equivariant）的——把输入顺序打乱，输出也会同样打乱。但"我爱你"和"你爱我"的语义完全不同！</p>
+
+<p>所以我们需要把<strong>位置信息</strong>注入到模型里。</p>
+
+<h2>🔄 RoPE 的核心理念</h2>
+
+<p>RoPE（Rotary Position Embedding）的思路很巧妙：<strong>不直接给向量加位置信息，而是旋转 Q 和 K 向量</strong>，让旋转后的 Q·K 点积结果自动包含位置关系。</p>
+
+<div class="formula-box">
+  <span class="math">f<sub>q</sub>(x<sub>m</sub>, m) = R<sub>m</sub> · W<sub>q</sub> · x<sub>m</sub></span><br>
+  <span class="math">f<sub>k</sub>(x<sub>n</sub>, n) = R<sub>n</sub> · W<sub>k</sub> · x<sub>n</sub></span><br><br>
+  <span class="math">⟨f<sub>q</sub>(x<sub>m</sub>, m), f<sub>k</sub>(x<sub>n</sub>, n)⟩ = g(x<sub>m</sub>, x<sub>n</sub>, m - n)</span>
+</div>
+
+<p>翻译成人话：<strong>旋转后的 Q·K 点积只依赖于相对位置 (m-n)，而不是绝对位置 (m, n)</strong>。这个性质非常棒！</p>
+
+<div class="tip">
+  💡 <strong>直观理解</strong>：想象两个指针在钟表盘上旋转——它们之间的夹角只取决于旋转的圈数差，而不取决于具体的起始位置。
+</div>
+
+<h2>🧮 二维旋转矩阵</h2>
+
+<p>对二维向量来说，旋转矩阵是：</p>
+
+<div class="formula-box">
+  R(θ) = [cos θ &emsp; -sin θ]<br>
+  &emsp;&emsp;&ensp;[sin θ &emsp;&ensp; cos θ]
+</div>
+
+<p>而 RoPE 把这个思想推广到了高维——把 96 维的 head_dim 分成 48 对，每对做一个二维旋转，每对的旋转速度不同：</p>
+
+<ul>
+  <li><strong>前几对</strong>（低频）：旋转慢（θ 小），适合编码长距离信息</li>
+  <li><strong>后几对</strong>（高频）：旋转快（θ 大），适合编码短距离信息</li>
+</ul>
+
+<h2>🧩 MiniMind 中 RoPE 的实现</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 预计算频率</span>
+<span class="keyword">def</span> precompute_freqs_cis(dim, end,
+    rope_base=1e6, rope_scaling=<span class="keyword">None</span>):
+
+    <span class="comment"># 每个维度的旋转速度</span>
+    freqs = 1.0 / (rope_base ** (
+        torch.arange(0, dim, 2)
+        [: (dim // 2)].float() / dim
+    ))
+
+    <span class="comment"># YaRN 扩展（处理超长序列）</span>
+    <span class="keyword">if</span> rope_scaling <span class="keyword">is not None</span>:
+        ...  <span class="comment"># 复杂的高频插值</span>
+
+    <span class="comment"># 位置 × 频率 = 每个位置每维的旋转角</span>
+    t = torch.arange(end)
+    freqs = torch.outer(t, freqs).float()
+
+    <span class="comment"># cos 和 sin</span>
+    freqs_cos = torch.cos(freqs).repeat(1, 2)
+    freqs_sin = torch.sin(freqs).repeat(1, 2)
+    <span class="keyword">return</span> freqs_cos, freqs_sin
+  </div>
+  <div class="explain-side">
+    <p><strong>逐行解读：</strong></p>
+    <p><span class="highlight">torch.arange(0, dim, 2)</span>：取偶数索引 [0, 2, 4, ..., 94]</p>
+    <p><span class="highlight">1.0 / (base^(i/dim))</span>：每对维度的旋转频率。dim=96 时，基频是 1/(1e6^(0/96))=1，最高频是 1/(1e6^(47/96))≈1/700</p>
+    <p><span class="highlight">torch.outer(t, freqs)</span>：位置 t 和频率 freqs 的外积</p>
+    <p><span class="highlight">repeat(1, 2)</span>：因为每 2 维共享一个旋转角</p>
+  </div>
+</div>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 应用旋转位置编码</span>
+<span class="keyword">def</span> apply_rotary_pos_emb(q, k,
+    cos, sin, unsqueeze_dim=1):
+
+    <span class="comment"># 旋转一半（翻转变换）</span>
+    <span class="keyword">def</span> rotate_half(x):
+        x1 = x[..., : x.shape[-1] // 2]
+        x2 = x[..., x.shape[-1] // 2:]
+        <span class="keyword">return</span> torch.cat(
+            [-x2, x1], dim=-1)
+
+    <span class="comment"># q_embed = q * cos + rotate_half(q) * sin</span>
+    q_embed = (q * cos.unsqueeze(1)) + \
+              (rotate_half(q) * sin.unsqueeze(1))
+    k_embed = (k * cos.unsqueeze(1)) + \
+              (rotate_half(k) * sin.unsqueeze(1))
+    <span class="keyword">return</span> q_embed, k_embed
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么用 rotate_half 而不是真正的旋转矩阵？</strong></p>
+    <p>因为 <span class="highlight">x * cos + rotate_half(x) * sin</span> 等价于对每对维度做旋转！</p>
+    <p>假设 x = [x₁, x₂, x₃, x₄, ...]：</p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li>rotate_half(x) = [-x₂, x₁, -x₄, x₃, ...]</li>
+      <li>x₁' = x₁·cos + (-x₂)·sin = x₁·cos - x₂·sin ✅</li>
+      <li>x₂' = x₂·cos + x₁·sin ✅</li>
+    </ul>
+    <p>这和二维旋转矩阵 <span class="math">R(θ) · [x₁, x₂]<sup>T</sup></span> 完全等价！</p>
+  </div>
+</div>
+
+<h2>🎯 RoPE 的优缺点</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>优点</th><th>缺点</th></tr></thead>
+  <tbody>
+    <tr><td>✅ 相对位置编码（不依赖绝对位置）</td><td>❌ 外推能力有限（超过训练长度效果下降）</td></tr>
+    <tr><td>✅ 计算高效（只需乘 cos/sin，无额外参数）</td><td>❌ 长度扩展需要 YaRN 等技巧</td></tr>
+    <tr><td>✅ 可以和线性注意力兼容</td><td>❌ 理解门槛相对较高</td></tr>
+    <tr><td>✅ Llama、Mistral、MiniMind 都在用</td><td></td></tr>
+  </tbody>
+</table>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>位置编码的必要性</strong>：Attention 是置换等变的，不知道词的顺序</li>
+    <li><strong>RoPE 的本质</strong>：旋转 Q 和 K 向量，让 Q·K 点积编码<strong>相对位置</strong></li>
+    <li><strong>实现方式</strong>：每 2 维一组做旋转，不同组有不同的旋转速度</li>
+    <li><strong>关键代码</strong>：<code>precompute_freqs_cis</code>（预计算）+ <code>apply_rotary_pos_emb</code>（应用）</li>
+    <li><strong>高效实现</strong>：<code>x*cos + rotate_half(x)*sin</code> 技巧，一行代码完成旋转</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：RoPE 为什么选择了"旋转"而不是"加"（像传统 Transformer 那样加一个位置向量）？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">加法位置编码（如原版 Transformer 的 Sinusoidal PE）有几个缺点：</p>
+    <ol>
+      <li><strong>绝对位置</strong>：加在输入上的位置向量是绝对位置，模型需要自己从中"推导"出相对关系</li>
+      <li><strong>和语义混合</strong>：位置信息和语义信息加在一起，模型需要"分开"它们，增加学习负担</li>
+      <li><strong>无法外推</strong>：训练时见过的最大位置是 2048，推理时来了 3000 就不好办了</li>
+    </ol>
+    <p>RoPE 的"旋转"方式直接把位置信息注入到 <strong>Attention 的计算中</strong>（而不是输入表示中），</p>
+    <p>而且 Q·K 点积的结果天然依赖<strong>相对位置</strong>——这让模型学到的位置信息更干净，泛化性也更好。</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="03-attention.html" class="nav-btn prev">← 上一章：注意力机制</a>
+  <a href="05-ffn.html" class="nav-btn next">下一章：前馈网络 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 04 章 · RoPE 位置编码</p></div>
+</body>
+</html>
