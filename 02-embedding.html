@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 - 词嵌入 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="01-overview.html">← 上一章</a>
+  <a href="03-attention.html">下一章 →</a>
+  <span class="title">第 02 章 · 词嵌入</span>
+</div>
+<div class="container">
+
+<h1>🔤 词嵌入（Token Embedding）</h1>
+<p class="subtitle">"把文字变成数字，让计算机能读懂"</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：之前我们学到了 MiniMind 的整体架构。
+  输入先通过 Embedding 层把 token ID 变成向量，这是模型理解文本的第一步。
+</div>
+
+<h2>🎯 Token Embedding 的本质</h2>
+
+<p>计算机看不懂文字，只能处理数字。Embedding 层的任务就是把每个 token 映射成一个稠密向量：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 输入：token ID 序列</span>
+<span class="comment"># "我" → 523, "爱" → 890, "你" → 1245</span>
+input_ids = [523, 890, 1245]
+
+<span class="comment"># Embedding 层（查找表）</span>
+self.embed_tokens = nn.Embedding(
+    config.vocab_size,     <span class="comment"># 6400</span>
+    config.hidden_size     <span class="comment"># 768</span>
+)
+
+<span class="comment"># 输出：每个 token 变成 768 维向量</span>
+<span class="comment"># 形状: [3, 768]</span>
+hidden_states = self.embed_tokens(input_ids)
+
+<span class="comment"># "我" → [0.12, -0.34, ..., 0.56] (768 个数)</span>
+<span class="comment"># "爱" → [0.89, 0.02, ..., -0.11] (768 个数)</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>本质上就是一张"查词表"</strong></p>
+    <p>这张表有 6400 行（词汇表大小）、768 列（每个词的向量维度）。</p>
+    <p>"我"这个词的嵌入就是第 523 行的那 768 个数字。</p>
+    <p><span class="highlight">nn.Embedding</span> 在训练过程中不断更新这些数字，让<strong>语义相近的词向量也相近</strong>。</p>
+  </div>
+</div>
+
+<h2>🤝 权重绑定（Tied Embedding）</h2>
+
+<p>MiniMind 做了一个巧妙的优化：<strong>输入 Embedding 和输出 LM Head 共享权重</strong>。</p>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 模型配置中的绑定</span>
+self.tie_word_embeddings = <span class="keyword">True</span>
+
+<span class="comment"># 初始化时：共享权重</span>
+<span class="keyword">if</span> self.config.tie_word_embeddings:
+    self.model.embed_tokens.weight = \
+        self.lm_head.weight
+
+<span class="comment"># HuggingFace 注册</span>
+_tied_weights_keys = {
+    <span class="string">"lm_head.weight"</span>:
+    <span class="string">"model.embed_tokens.weight"</span>
+}
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么这样做？</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><strong>节省参数</strong>：Embedding 有 6400×768≈4.9M 参数，和 LM Head 共享就省了 4.9M</li>
+      <li><strong>加速收敛</strong>：同一个词在输入和输出的语义是一致 的，共享权重帮助模型更快学习</li>
+      <li><strong>正则化效果</strong>：减少过拟合风险</li>
+    </ol>
+    <p>这是 GPT 系列模型的经典设计。MiniMind 也使用了这个技巧。</p>
+  </div>
+</div>
+
+<h2>📏 向量空间的"语义地图"</h2>
+
+<p>训练好的 Embedding 空间有一个神奇特性：<strong>语义相近的词，向量距离也近</strong>。</p>
+
+<p>想象一个二维的简化版本：</p>
+
+<div style="background:var(--bg-card);border-radius:12px;padding:20px;margin:16px 0;text-align:center;">
+  <pre style="font-size:0.8rem;color:var(--text-muted);">
+       🇨🇳北京 ·                  👨男人 ·     
+                        ·👩女人
+         · 🗼巴黎               · 🐶狗
+  ────────────────────  ────────────────────
+     城市语义空间             性别/物种语义空间</pre>
+  <p style="font-size:0.85rem;color:var(--text-muted);">实际上是在 768 维空间中的，人类无法直观看到——但数学上"近"意味着语义"近"</p>
+</div>
+
+<div class="tip">
+  💡 <strong>一个经典的例子</strong>：国王 - 男人 + 女人 = 女王。这就是 Embedding 空间的"语义向量运算"！
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>Embedding</strong>：把 token ID（如 523）映射成 768 维稠密向量</li>
+    <li><strong>MiniMind 实现</strong>：<code>nn.Embedding(6400, 768)</code>，一张查词表</li>
+    <li><strong>权重绑定</strong>：输入 Embedding 和输出 LM Head 共享权重，省参数、加速收敛</li>
+    <li><strong>语义空间</strong>：训练好的词向量中，语义相近的词距离也近</li>
+    <li><strong>代码位置</strong>：<code>MiniMindModel.__init__</code> 中的 <code>self.embed_tokens</code></li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：MiniMind 的 vocab_size=6400，hidden_size=768。如果 vocab_size 扩大到 32000（Llama 的规模），Embedding 层会占多少参数？还能做权重绑定吗？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">32000 × 768 = 24.6M 参数，比 MiniMind 整个模型（34.4M）还大！</p>
+    <p>这就解释了为什么像 Llama 这样的大模型也做权重绑定——</p>
+    <p>如果不绑定，Embedding + LM Head 就是 24.6M × 2 = 49.2M，远超模型其他部分。</p>
+    <p>权重绑定后省掉了 LM Head 的那一份，只需要 24.6M。</p>
+    <p>实际上 MiniMind 选择 vocab_size=6400 也是有意为之——在模型大小和表达能力之间做平衡。</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="01-overview.html" class="nav-btn prev">← 上一章：概览</a>
+  <a href="03-attention.html" class="nav-btn next">下一章：注意力机制 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 02 章 · 词嵌入</p></div>
+</body>
+</html>
