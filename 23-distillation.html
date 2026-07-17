@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>23 - 知识蒸馏 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; font-size: 1.1rem; text-align: center; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+  .teacher-student { display: flex; align-items: center; justify-content: center; gap: 24px; margin: 24px 0; flex-wrap: wrap; }
+  .teacher-student .ts-box { padding: 24px 32px; border-radius: 16px; text-align: center; min-width: 160px; }
+  .teacher-student .ts-box.teacher { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 3px solid var(--accent); }
+  .teacher-student .ts-box.student { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border: 3px solid var(--primary); }
+  .teacher-student .ts-box .emoji { font-size: 3rem; }
+  .teacher-student .ts-box .name { font-weight: 700; margin-top: 8px; }
+  .teacher-student .ts-box .size { font-size: 0.85rem; color: var(--text-muted); }
+  .teacher-student .arrow { font-size: 2rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="22-lora-theory.html">← 上一章</a>
+  <a href="24-inference-optimization.html">下一章 →</a>
+  <span class="title">第 23 章 · 知识蒸馏</span>
+</div>
+<div class="container">
+
+<h1>🧪 知识蒸馏</h1>
+<p class="subtitle">Knowledge Distillation——"大模型教小模型，把大象装进冰箱需要几步？"</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>LoRA 是一种<strong>参数高效微调</strong>方法，减少可训练参数</li>
+    <li>但 LoRA 并没有改变<strong>模型大小</strong>——7B 还是 7B，推理依然慢</li>
+    <li>如果我们想<strong>真正缩小模型</strong>（比如 7B → 1.5B），就要用知识蒸馏</li>
+  </ul>
+</div>
+
+<h2>💡 核心问题：大模型太"贵"了</h2>
+
+<p>大模型（GPT-4、Llama-3-70B）能力很强，但也代价高昂：</p>
+
+<ul>
+  <li><strong>推理慢</strong>：70B 模型每生成一个 token 需要数毫秒</li>
+  <li><strong>显存大</strong>：70B 模型需要 ~140GB 显存（FP16），至少 2 张 A100</li>
+  <li><strong>成本高</strong>：API 调用一次可能就要花几美分</li>
+</ul>
+
+<p>但如果用小模型（1.5B）直接训练，它的能力又远远不如大模型。</p>
+
+<p><strong>知识蒸馏</strong>就是来解决这个矛盾的：让大模型（Teacher）"教"小模型（Student）。</p>
+
+<div class="teacher-student">
+  <div class="ts-box teacher">
+    <div class="emoji">🧑‍🏫</div>
+    <div class="name">Teacher</div>
+    <div class="size">大模型（如 Llama-3-70B）</div>
+  </div>
+  <span class="arrow">→ 知识 →</span>
+  <div class="ts-box student">
+    <div class="emoji">🧑‍🎓</div>
+    <div class="name">Student</div>
+    <div class="size">小模型（如 MiniMind）</div>
+  </div>
+</div>
+
+<h2>🎯 蒸馏的核心思想</h2>
+
+<p>知识蒸馏不只让学生学习<strong>"正确的答案"</strong>（hard target），更要学习<strong>"大模型是怎么想的"</strong>（soft target）。</p>
+
+<div class="formula-box">
+  <strong>蒸馏的 Loss：</strong><br>
+  L<sub>KD</sub> = α · L<sub>hard</sub>(y<sub>true</sub>, ŷ<sub>student</sub>) + (1-α) · L<sub>soft</sub>(ŷ<sub>teacher</sub>, ŷ<sub>student</sub>)<br><br>
+  其中：ŷ 是模型输出的概率分布（经过 Temperature 缩放）
+</div>
+
+<h2>🔬 Hard Target vs Soft Target</h2>
+
+<p>用一个例子来说明两者的区别：</p>
+
+<table class="compare-table">
+  <thead><tr><th>输入："中国的首都是"</th><th>北京的概率</th><th>上海的概率</th><th>广州的概率</th><th>巴黎的概率</th></tr></thead>
+  <tbody>
+    <tr><td><strong>真实答案（Hard Target）</strong></td><td style="background:#f0fdf4;font-weight:700;">1.0</td><td>0</td><td>0</td><td>0</td></tr>
+    <tr><td><strong>MiniMind 自己的预测</strong></td><td>0.6</td><td>0.3</td><td>0.08</td><td>0.02</td></tr>
+    <tr><td><strong>大模型的预测（Soft Target）</strong></td><td style="background:#f0fdf4;font-weight:700;">0.95</td><td style="background:#fef2f2;">0.03</td><td style="background:#fef2f2;">0.015</td><td style="background:#fef2f2;">0.005</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Hard Target</strong>（传统训练）："中国首都是北京"——只有北京是正确答案，其他全是错的。</p>
+<p><strong>Soft Target</strong>（蒸馏）：大模型说"北京概率 0.95，上海 0.03……"——学生不仅能学<strong>北京是答案</strong>，还能学到大模型<strong>对其他候选词的"判断"</strong>。</p>
+
+<div class="tip">
+  💡 <strong>比喻一下</strong>：
+  Hard Target 就像考试只告诉你<strong>标准答案</strong>（选 B）。
+  Soft Target 就像让一个优秀的老师告诉你：<strong>"虽然 A 不是最对的，但它比 C 要更接近一些"</strong>。
+  这种"软信息"包含了老师对问题的<strong>理解</strong>，而不仅仅是答案。
+</div>
+
+<h2>🌡️ Temperature 在蒸馏中的作用</h2>
+
+<p>为了让 Soft Target 传递更多"暗知识"，我们通常会使用<strong>带 Temperature 的 Softmax</strong>：</p>
+
+<div class="formula-box">
+  <span class="math">softmax(z<sub>i</sub> / T) = exp(z<sub>i</sub>/T) / Σ<sub>j</sub> exp(z<sub>j</sub>/T)</span><br><br>
+  其中 <span class="math">T</span> 是 Temperature 超参数<br>
+  T > 1：分布更"软"（暗知识更清晰）<br>
+  T = 1：标准 Softmax<br>
+  T → 0：趋近于 One-Hot（只有最大值能"活"下来）
+</div>
+
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin:16px 0;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>T = 0.5</h4>
+    <p style="font-size:0.85rem;">概率分布很"尖"<br>几乎只有 argmax</p>
+    <p style="font-size:0.75rem;color:var(--text-muted);">[0.99, 0.01, ~0, ~0]</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--primary); border-radius:10px; padding:14px; text-align:center;">
+    <h4>T = 2.0</h4>
+    <p style="font-size:0.85rem;">分布很"平"<br>暗知识清晰可见</p>
+    <p style="font-size:0.75rem;color:var(--text-muted);">[0.72, 0.18, 0.07, 0.03]</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>T = 5.0</h4>
+    <p style="font-size:0.85rem;">几乎均匀分布<br>信息过于模糊</p>
+    <p style="font-size:0.75rem;color:var(--text-muted);">[0.32, 0.26, 0.22, 0.20]</p>
+  </div>
+</div>
+
+<h2>🧩 蒸馏的三种主要形式</h2>
+
+<h3>1. 离线蒸馏（Offline KD）</h3>
+<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; margin:12px 0;">
+  <p><strong>流程</strong>：Teacher 先对训练数据做一次推理 → 保存 soft label → Student 用 soft label 训练</p>
+  <p><strong>优点</strong>：Teacher 只推理一次，训练时只需要 Student</p>
+  <p><strong>缺点</strong>：Student 无法看到 Teacher 对<strong>自己生成结果</strong>的反馈</p>
+</div>
+
+<h3>2. 在线蒸馏（Online KD）</h3>
+<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; margin:12px 0;">
+  <p><strong>流程</strong>：Teacher 和 Student 同时推理，Student 实时模仿 Teacher 的输出</p>
+  <p><strong>优点</strong>：Student 可以学到 Teacher 对<strong>各种输入</strong>（包括 Student 不太擅长的输入）的反馈</p>
+  <p><strong>缺点</strong>：Teacher 需要常驻显存，计算开销大</p>
+</div>
+
+<h3>3. 自蒸馏（Self-Distillation）</h3>
+<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; margin:12px 0;">
+  <p><strong>流程</strong>：模型自身做 Teacher 和 Student——先用大模型训练到收敛，冻结早期 checkpoint 作为 Teacher，继续训练</p>
+  <p><strong>优点</strong>：不需要额外的大模型，适合已有训练好的模型</p>
+  <p><strong>缺点</strong>：Teacher 和 Student 能力相近，提升有限</p>
+</div>
+
+<h2>📊 MiniMind 的蒸馏实践</h2>
+
+<p>虽然 MiniMind 项目本身没有直接的蒸馏脚本，但我们可以基于现有代码轻松实现一个蒸馏训练器。核心代码只需在标准 CrossEntropy Loss 上加上 KL 散度项：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 蒸馏训练的核心代码</span>
+<span class="keyword">def</span> distillation_loss(
+    student_logits, teacher_logits,
+    true_labels, temperature=2.0,
+    alpha=0.5
+):
+    <span class="comment"># 1. Hard Loss（标准 Cross Entropy）</span>
+    loss_hard = F.cross_entropy(
+        student_logits.view(-1, vocab_size),
+        true_labels.view(-1),
+        ignore_index=-100
+    )
+
+    <span class="comment"># 2. Soft Loss（KL 散度）</span>
+    soft_student = F.log_softmax(
+        student_logits / temperature, dim=-1
+    )
+    soft_teacher = F.softmax(
+        teacher_logits / temperature, dim=-1
+    )
+
+    <span class="comment"># KL 散度：D_KL(Teacher || Student)</span>
+    loss_soft = F.kl_div(
+        soft_student, soft_teacher,
+        reduction='batchmean'
+    ) * (temperature ** 2)
+
+    <span class="comment"># 3. 加权组合</span>
+    loss = alpha * loss_hard + \
+           (1 - alpha) * loss_soft
+    <span class="keyword">return</span> loss
+  </div>
+  <div class="explain-side">
+    <p><strong>代码解读：</strong></p>
+    <p><strong>1</strong>：Hard Loss 就是标准的 CrossEntropy——学生模型需要预测正确的 token。</p>
+    <p><strong>2</strong>：Soft Loss 是学生分布和教师分布的 <strong>KL 散度</strong>。</p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li>两个 logits 都用 Temperature 缩放</li>
+      <li><span class="highlight">temperature²</span> 是缩放补偿——因为用 T 缩放后梯度会缩小 1/T² 倍</li>
+      <li>乘以 T² 让梯度恢复到正确尺度</li>
+    </ul>
+    <p><strong>3</strong>：α 控制硬目标和软目标的权重。</p>
+    <p>α = 1.0 退化为标准训练；α = 0.0 只学教师分布。</p>
+  </div>
+</div>
+
+<h3>将蒸馏集成到 MiniMind 的训练流程</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 加载教师模型（冻结）</span>
+teacher_model = MiniMindForCausalLM(
+    teacher_config
+).to(device)
+teacher_model.load_state_dict(
+    torch.load(teacher_weights)
+)
+teacher_model.eval()
+<span class="keyword">for</span> p <span class="keyword">in</span> teacher_model.parameters():
+    p.requires_grad = False
+
+<span class="comment"># 学生模型（可训练）</span>
+student_model = MiniMindForCausalLM(
+    student_config
+).to(device)
+
+<span class="keyword">for</span> batch <span class="keyword">in</span> dataloader:
+    x, y = batch
+    <span class="keyword">with</span> torch.no_grad():
+        teacher_output = teacher_model(x)
+        teacher_logits = teacher_output.logits
+
+    student_output = student_model(x)
+    student_logits = student_output.logits
+
+    loss = distillation_loss(
+        student_logits, teacher_logits,
+        y, T=2.0, alpha=0.5
+    )
+    loss.backward()
+    optimizer.step()
+  </div>
+  <div class="explain-side">
+    <p><strong>关键点：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><strong>Teacher 完全冻结</strong>：用 no_grad() 省显存和计算</li>
+      <li><strong>Teacher 和 Student 共享同一个 DataLoader</strong>：同样的输入，Teacher 给出"软标签"</li>
+      <li><strong>推理时只用 Student</strong>：Teacher 只在训练时使用</li>
+    </ol>
+    <p>这就是"把大象装进冰箱"的三步：</p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>把大模型 Teacher 放到 GPU 上（一次）</li>
+      <li>让 Teacher 对训练数据做推理，生成软标签</li>
+      <li>让学生模型学习硬标签 + 软标签的组合</li>
+    </ol>
+  </div>
+</div>
+
+<h2>📊 知识蒸馏 vs 其他方法</h2>
+
+<table class="compare-table">
+  <thead><tr><th>维度</th><th>Full SFT</th><th>LoRA</th><th>知识蒸馏</th></tr></thead>
+  <tbody>
+    <tr><td><strong>模型大小</strong></td><td>不变</td><td>不变</td><td><strong>缩小</strong></td></tr>
+    <tr><td><strong>训练数据</strong></td><td>人工标注</td><td>人工标注</td><td><strong>Teacher 生成</strong></td></tr>
+    <tr><td><strong>可训练参数</strong></td><td>100%</td><td>0.1%~2%</td><td>100%（但模型更小）</td></tr>
+    <tr><td><strong>推理速度</strong></td><td>慢</td><td>慢</td><td><strong>快</strong></td></tr>
+    <tr><td><strong>目标</strong></td><td>学会新任务</td><td>轻量微调</td><td><strong>压缩模型</strong></td></tr>
+  </tbody>
+</table>
+
+<h2>🌍 现实世界中的蒸馏应用</h2>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin:16px 0;">
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px;">
+    <h4 style="margin:0 0 6px;color:var(--primary);">🧑‍🏫 DistilBERT</h4>
+    <p style="font-size:0.85rem;">HuggingFace 用蒸馏 BERT-base → BERT-small，保留了 97% 的能力，但速度提升 60%。</p>
+  </div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px;">
+    <h4 style="margin:0 0 6px;color:var(--primary);">🧑‍🏫 TinyBERT</h4>
+    <p style="font-size:0.85rem;">两阶段蒸馏（预训练阶段 + 微调阶段），让 BERT-small 达到接近 BERT-base 的效果。</p>
+  </div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px;">
+    <h4 style="margin:0 0 6px;color:var(--primary);">🧑‍🏫 Phi-3 / MiniCPM</h4>
+    <p style="font-size:0.85rem;">小模型在大量 Teacher 生成的数据上训练，LLM 领域最流行的做法之一。</p>
+  </div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px;">
+    <h4 style="margin:0 0 6px;color:var(--primary);">🧑‍🏫 DeepSeek-R1</h4>
+    <p style="font-size:0.85rem;">在 R1 训练过程中，用大模型（671B）的推理结果蒸馏到小模型（1.5B/7B）上。</p>
+  </div>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>知识蒸馏的目标</strong>：用大模型（Teacher）"教"小模型（Student），让小模型接近大模型的能力</li>
+    <li><strong>Hard Target</strong>：标准答案（One-Hot 标签）</li>
+    <li><strong>Soft Target</strong>：Teacher 的概率分布（包含"暗知识"）</li>
+    <li><strong>Temperature</strong>：控制分布"软硬"程度，T 越大暗知识越明显</li>
+    <li><strong>蒸馏 Loss</strong>：L = α·L<sub>hard</sub> + (1-α)·L<sub>soft</sub></li>
+    <li><strong>三种形式</strong>：离线蒸馏（最常用）、在线蒸馏、自蒸馏</li>
+    <li><strong>与 LoRA 互补</strong>：LoRA 不改变模型大小，蒸馏<strong>压缩</strong>模型</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：假设你有一个训练好的 MiniMind（768 隐藏层，8 层），
+  你想蒸馏一个更小的版本（384 隐藏层，4 层）。但 Teacher 和 Student 的 hidden_size 不同，
+  logits 不同（vocab 相同但 hidden 不同），怎么处理？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">实际上，Teacher 和 Student 模型的 hidden_size 可以不同！
+  因为知识蒸馏的 Loss 是在 <strong>logits 级别</strong>（即 vocab 维度）上计算的，而不是在 hidden 级别上。</p>
+  <p>只要 Teacher 和 Student 共享 <strong>相同的 vocab</strong>，它们的 logits 维度就都是 [batch, seq_len, vocab_size]——完全可以直接比较。</p>
+  <p>你唯一需要确保的是：</p>
+  <ol>
+    <li>Teacher 和 Student 使用相同的 tokenizer（否则 logits 的 vocab 索引不对应）</li>
+    <li>Teacher 的 logits 和学生对齐（seq 维度一致）</li>
+  </ol>
+  <p>如果要蒸馏 <strong>中间层表示</strong>（hidden states），那就需要 adapter 来对齐维度了——这叫 <strong>Hidden Distillation</strong> 或 <strong>Feature Distillation</strong>。</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="22-lora-theory.html" class="nav-btn prev">← 上一章：LoRA</a>
+  <a href="24-inference-optimization.html" class="nav-btn next">下一章：推理优化 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 23 章 · 知识蒸馏</p></div>
+</body>
+</html>
