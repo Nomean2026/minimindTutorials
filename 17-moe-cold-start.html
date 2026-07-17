@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>17 - MoE 冷启动训练 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+  .stage-flow { display: flex; align-items: flex-start; justify-content: center; gap: 8px; margin: 24px 0; flex-wrap: wrap; }
+  .stage-flow .stage { background: var(--bg-card); border: 2px solid var(--border); border-radius: 12px; padding: 20px; flex: 1; min-width: 200px; position: relative; }
+  .stage-flow .stage h4 { text-align: center; margin-bottom: 10px; }
+  .stage-flow .stage.stage1 { border-color: var(--primary); }
+  .stage-flow .stage.stage2 { border-color: var(--accent); }
+  .stage-flow .arrow-lg { font-size: 1.5rem; color: var(--text-muted); align-self: center; }
+
+  .hospital-box { background: #fffbeb; border: 2px solid #fcd34d; border-radius: 16px; padding: 24px; margin: 20px 0; }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+
+  .table-wrap { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .table-wrap th, .table-wrap td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  .table-wrap th { background: var(--primary); color: #fff; }
+  .table-wrap tr:nth-child(even) { background: var(--bg-card); }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="16-moe-z-loss.html">← 上一章</a>
+  <span class="title">第 17 章 · MoE 冷启动训练</span>
+</div>
+<div class="container">
+
+<h1>❄️ 冷启动训练</h1>
+<p class="subtitle">Two-Stage Training + Router Warm-up——让每个专家"见见世面"</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <p>我们学了 MoE 的三大组件：</p>
+  <ol>
+    <li><strong>路由网络</strong>：决定每个 token 去哪个专家</li>
+    <li><strong>Load Balancing Loss</strong>：防止专家坍塌</li>
+    <li><strong>Z-Loss</strong>：防止 Router logits 爆炸</li>
+  </ol>
+  <p>但还有一个根本问题：<strong>如果 MoE 是从头训练（冷启动），专家都是"白纸一张"，Router 要怎么学？</strong></p>
+</div>
+
+<h2>🥶 冷启动问题</h2>
+
+<p>视频里说：<strong>"冷启动就是说你可能没有一个很好的预训练……因为你的模型结构改了，没有 pretrain 可以用。"</strong></p>
+
+<p>具体来说：</p>
+<ul>
+  <li>你有一个 Dense 模型 → 改成了 MoE 架构（替换 FFN 为 MOEFeedForward）</li>
+  <li>以前训练的权重里<strong>没有 Router 的参数</strong>（Router 是新增的线性层）</li>
+  <li>甚至<strong>专家的参数也是随机初始化的</strong></li>
+  <li>现在你要从零开始训练这个 MoE——这就是"冷启动"</li>
+</ul>
+
+<h2>🏥 医院比喻（来自视频）</h2>
+
+<div class="hospital-box">
+  <h4 style="margin:0 0 10px;color:#92400e;">🏥 假设你开了一所新医院</h4>
+  <p><strong>第一阶段（热身）：</strong>新来的专家（医生）虽然有名气（随机初始化），但还不了解患者。你让每个专家都看看各个科室的患者，积累临床经验。Router（分诊台护士）也先不搞严格的"专家专攻"，让大家轮岗学习。</p>
+  <p><strong>第二阶段（正式运营）：</strong>专家们都有了临床经验，Router 也了解了每个专家的特长。这时候开始真正的 Top-K 选择——让"心脏专家"只看心脏病人，"皮肤专家"只看皮肤病人。</p>
+</div>
+
+<h2>🔄 Two-Stage Training</h2>
+
+<div class="stage-flow">
+  <div class="stage stage1">
+    <h4 style="color:var(--primary);">🔰 阶段一：热身</h4>
+    <ul style="font-size:0.9rem;margin:8px 0;padding-left:16px;">
+      <li>不使用 Top-K 选择</li>
+      <li>或使用 <strong>高探索率</strong></li>
+      <li>每个专家都"见世面"</li>
+      <li>Router 初步学习</li>
+    </ul>
+  </div>
+  <div class="arrow-lg">→</div>
+  <div class="stage stage2">
+    <h4 style="color:var(--accent);">⚡ 阶段二：正式训练</h4>
+    <ul style="font-size:0.9rem;margin:8px 0;padding-left:16px;">
+      <li>放开 Top-K 选择</li>
+      <li>降低负载均衡惩罚</li>
+      <li>Router 真正"分诊"</li>
+      <li>专家开始"分化"</li>
+    </ul>
+  </div>
+</div>
+
+<p>视频里说：<strong>"第一阶段的目的是让每个专家都经受一下这个洗礼，见见世面。第二阶段放开对路由网络的控制，让路由真正开始执行它的 top-k 选择。"</strong></p>
+
+<h2>🔄 实际上：两种热身方式</h2>
+
+<table class="table-wrap">
+  <thead>
+    <tr>
+      <th>方式</th>
+      <th>做法</th>
+      <th>优缺点</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Dense 热身</strong></td>
+      <td>阶段一：所有专家都激活（像 Dense 一样训练）<br>阶段二：切换到 Top-K 选择</td>
+      <td>✅ 每个专家充分训练<br>❌ 计算量大（不省算力了）</td>
+    </tr>
+    <tr>
+      <td><strong>Sparse 热身</strong></td>
+      <td>阶段一：用 Top-K 但 <strong>加噪声</strong> + 高负载均衡惩罚<br>阶段二：噪声逐渐减少</td>
+      <td>✅ 计算量小<br>❌ 需要更精细的调度策略</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>🎛️ Router Warm-up（路由热身）</h2>
+
+<p>具体到代码层面，"热身"可以这样实现：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># Router warm-up 思路</span>
+    <br><br>
+    <span class="comment"># 阶段一：高负载均衡惩罚</span>
+    <br>
+    <span class="comment"># 让均匀分配是首要目标</span>
+    <br>
+    config.router_aux_loss_coef = <span class="number">0.01</span>
+    <br>
+    <span class="comment"># (正常是 0.0005)</span>
+    <br><br>
+    <span class="comment"># 可选的：给 Router logits 加噪声</span>
+    <br>
+    gate_logits = self.gate(x_flat)
+    <br>
+    <span class="keyword">if</span> warmup_phase:
+    <br>
+    &nbsp;&nbsp;noise = torch.randn_like(gate_logits) * 0.1
+    <br>
+    &nbsp;&nbsp;gate_logits += noise
+    <br><br>
+    <span class="comment"># 阶段二：恢复正常</span>
+    <br>
+    config.router_aux_loss_coef = <span class="number">0.0005</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>热身阶段的关键：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><strong>提高负载均衡权重</strong>：强制 Router 公平分配 token</li>
+      <li><strong>加随机噪声</strong>：让 Router 的决策不那么"确定"，给冷门专家被选中的机会</li>
+      <li><strong>降低 Z-Loss 权重</strong>：先让 Router 自由探索，不怕 logits 大</li>
+    </ol>
+    <p>其实就是视频里说的<strong>"以比较高的探索率来运行"</strong>。</p>
+  </div>
+</div>
+
+<h2>🧪 MiniMind 的实际情况</h2>
+
+<p>MiniMind 的 MoE 实现<strong>没有显式的两阶段训练</strong>，因为：</p>
+<ul>
+  <li>MiniMind 的规模很小（仅 ~10M 参数），冷启动问题不严重</li>
+  <li>它是<strong>直接用预训练的 Dense 权重初始化 MoE</strong>（每个专家从同一个 Dense FFN 复制初始化）</li>
+  <li>这种初始化方式相当于给每个专家"相同的起点"，然后再通过训练让它们差异化</li>
+</ul>
+
+<div class="tip">
+  💡 <strong>如果你要训练真正的超大 MoE（如 Mixtral 8×7B）：</strong>
+  <ol>
+    <li>第一阶段：用高负载均衡惩罚训练几千步</li>
+    <li>第二阶段：降低负载均衡权重，让 Router 真正"做选择"</li>
+    <li>观察指标：每个专家被分配的 token 比例应该趋于均匀</li>
+  </ol>
+</div>
+
+<h2>🌍 更大的图景：Dense → MoE 的"升级"路径</h2>
+
+<p>在实际工业界，通常有两种方式获得 MoE 模型：</p>
+
+<table class="table-wrap">
+  <thead>
+    <tr>
+      <th>方式</th>
+      <th>流程</th>
+      <th>代表模型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>From Scratch</strong></td>
+      <td>直接训练 MoE 架构（从零开始）</td>
+      <td>早期 MoE 论文</td>
+    </tr>
+    <tr>
+      <td><strong>Upscaling</strong></td>
+      <td>把 Dense 模型的每层 FFN 复制 N 份作为专家初始化，然后做 warm-up 训练</td>
+      <td>Mixtral 8×7B, DeepSeekMoE</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>📝 MoE 篇大总结</h2>
+
+<div style="background: linear-gradient(135deg, #f0f9ff, #f0fdf4); border: 2px solid var(--primary); border-radius: 16px; padding: 24px; margin: 24px 0;">
+  <h3 style="margin-top:0;">🧠 MoE 的五堂课，一张图总结</h3>
+  
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin:16px 0;">
+    <div style="background:#fff; border-radius:8px; padding:14px; border-left:4px solid var(--primary);">
+      <strong>13·概念入门</strong><br>
+      <span style="font-size:0.85rem;color:var(--text-muted);">空间换时间，参数多但计算少</span>
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:14px; border-left:4px solid var(--accent);">
+      <strong>14·路由网络</strong><br>
+      <span style="font-size:0.85rem;color:var(--text-muted);">一个 Linear 层 + Top-K 选择</span>
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:14px; border-left:4px solid var(--success);">
+      <strong>15·负载均衡</strong><br>
+      <span style="font-size:0.85rem;color:var(--text-muted);">N·Σ(f_i·p_i)，防专家坍塌</span>
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:14px; border-left:4px solid var(--danger);">
+      <strong>16·Z-Loss</strong><br>
+      <span style="font-size:0.85rem;color:var(--text-muted);">(log Σ exp(gᵢ))²，防 logits 爆炸</span>
+    </div>
+  </div>
+
+  <div style="background:#fff; border-radius:8px; padding:14px; border-left:4px solid #8b5cf6;">
+    <strong>17·冷启动训练</strong><br>
+    <span style="font-size:0.85rem;color:var(--text-muted);">两阶段训练：先热身（高探索率），再正式（Top-K）</span>
+  </div>
+
+  <p style="margin-top:16px;font-size:0.95rem;">
+    <strong>一句话贯穿始终</strong>：MoE 的核心矛盾是"多个专家 vs 一个 Router"——专家需要分工协作，Router 需要公平分配。
+    所有技巧（Load Balance、Z-Loss、Warm-up）都是为了解决这个矛盾。
+  </p>
+</div>
+
+<div class="nav-buttons">
+  <a href="16-moe-z-loss.html" class="nav-btn prev">← 上一章：Z-Loss</a>
+  <a href="index.html" class="nav-btn next" style="background:var(--primary);color:#fff;">🏠 回到目录</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 17 章 · MoE 冷启动训练</p></div>
+</body>
+</html>

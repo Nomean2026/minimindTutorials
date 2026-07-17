@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 - SFT 概览 | MiniMind 教程</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --bg: #ffffff;
+    --bg-card: #f8fafc;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 {
+    font-size: 1.4rem; margin: 40px 0 16px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--primary);
+  }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+
+  /* 复习框 */
+  .review-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .review-box .review-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  @media (max-width: 640px) { .review-box .review-grid { grid-template-columns: 1fr; } }
+  .review-item {
+    background: #fff; border-radius: 8px; padding: 14px;
+    border: 1px solid #bae6fd;
+  }
+  .review-item .label { font-size: 0.8rem; color: #0284c7; font-weight: 600; }
+
+  /* 代码双栏布局 */
+  .code-panel {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    margin: 20px 0;
+  }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 20px; overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem; line-height: 1.6;
+  }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .type { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side {
+    background: var(--bg-card);
+    padding: 20px;
+    font-size: 0.92rem;
+  }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+
+  /* 对比表格 */
+  .compare-table {
+    width: 100%; border-collapse: collapse;
+    margin: 20px 0; border-radius: 12px; overflow: hidden;
+  }
+  .compare-table th, .compare-table td {
+    padding: 14px 18px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+
+  /* 提示框 */
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn {
+    padding: 12px 24px; border-radius: 8px; text-decoration: none;
+    font-weight: 600; transition: all 0.2s;
+  }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+
+  .figure {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; text-align: center; margin: 20px 0;
+  }
+  .figure svg { max-width: 100%; }
+  .figure .caption { color: var(--text-muted); font-size: 0.85rem; margin-top: 12px; }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="10-sft-data-pipeline.html">下一章 →</a>
+  <span class="title">第 09 章 · SFT 概览</span>
+</div>
+
+<div class="container">
+
+<h1>🎯 SFT 概览</h1>
+<p class="subtitle">从预训练到监督微调——为什么"预训练好的模型"还需要"再训练"？</p>
+
+<!-- ============ 快速复习 ============ -->
+<div class="review-box">
+  <h3>📖 快速复习：预训练我们都学了什么</h3>
+  <p>在进入 SFT 之前，先花 3 分钟回顾一下预训练的核心。如果你已经烂熟于心，可以直接跳到下一节。</p>
+  <div class="review-grid">
+    <div class="review-item">
+      <div class="label">🎯 目标</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">预测下一个 token（Next Token Prediction），让模型学会语言的统计规律。</p>
+    </div>
+    <div class="review-item">
+      <div class="label">📊 损失函数</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">Cross-Entropy Loss，对 <strong>所有 token</strong> 都计算损失（除了 padding）。</p>
+    </div>
+    <div class="review-item">
+      <div class="label">📦 训练数据</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">海量纯文本，从互联网上爬取的书籍、文章、网页等。不需要人工标注。</p>
+    </div>
+    <div class="review-item">
+      <div class="label">📈 学习率</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">比较大，通常 <span class="math">5 × 10⁻⁴</span>（0.0005），配合余弦退火调度。</p>
+    </div>
+    <div class="review-item">
+      <div class="label">🏗️ 模型架构</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">Decoder-only Transformer：Embedding → N×DecoderBlock → LM Head。</p>
+    </div>
+    <div class="review-item">
+      <div class="label">💡 关键 insight</div>
+      <p style="margin:6px 0 0; font-size:0.92rem;">预训练 ≈ "灌数据"，让模型学到语法、事实、推理能力，但还没学会"对话"。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 正文开始 ============ -->
+
+<h2>🤔 为什么需要 SFT？</h2>
+
+<p>想象一下：你有一个绝顶聪明的朋友（预训练模型），他读了全世界的书，上知天文下知地理。但是——</p>
+
+<ul>
+  <li><strong>你问他</strong>："今天天气怎么样？"</li>
+  <li><strong>他回答</strong>："今天天气是一个名词短语，由'今天'和'天气'两个词组成..." 🤦</li>
+</ul>
+
+<p>预训练模型就像一个<strong>知识渊博但不懂社交的书呆子</strong>。它知道怎么续写文本，但不知道什么是"对话"、什么是"指令"。SFT（Supervised Fine-Tuning）就是<strong>给模型上"社交礼仪课"</strong>——用高质量的人机对话数据，教它学会：</p>
+
+<ol>
+  <li><strong>对话格式</strong>：知道什么时候该说话、什么时候该闭嘴（系统提示 vs 用户 vs 助手）</li>
+  <li><strong>指令遵循</strong>：用户说"写一首诗"，它真的写诗，而不是分析"诗"这个词的词性</li>
+  <li><strong>有用性</strong>：回答要 helpful，而不是"正确的废话"</li>
+</ol>
+
+<div class="tip">
+  💡 <strong>灵魂比喻</strong>：预训练是"读万卷书"，SFT 是"行万里路"（外加"见人说人话"的社交训练）。少了哪一个，模型都不完整。
+</div>
+
+<h2>🔄 SFT vs Pre-train：核心对比</h2>
+
+<p>注意！SFT 和 Pre-train 使用的是 <strong>完全一样的模型架构</strong>（MiniMindForCausalLM），区别主要在下面几点：</p>
+
+<table class="compare-table">
+  <thead>
+    <tr>
+      <th>维度</th>
+      <th>🔧 Pre-train（预训练）</th>
+      <th>💬 SFT（监督微调）</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>数据格式</strong></td>
+      <td>纯文本，如："在很久很久以前，有一座山..."</td>
+      <td>对话格式（chat template），含 role 标记</td>
+    </tr>
+    <tr>
+      <td><strong>损失计算范围</strong></td>
+      <td>✅ 所有 token 都算 loss</td>
+      <td>⚠️ 只对 <strong>assistant 的回答</strong>算 loss，用户输入不算</td>
+    </tr>
+    <tr>
+      <td><strong>学习率</strong></td>
+      <td><span class="math">5 × 10⁻⁴</span>（较大）</td>
+      <td><span class="math">1 × 10⁻⁵</span>（较小，差 50 倍）</td>
+    </tr>
+    <tr>
+      <td><strong>训练数据量</strong></td>
+      <td>大量（TB 级）</td>
+      <td>少量（MB~GB 级）</td>
+    </tr>
+    <tr>
+      <td><strong>训练目标</strong></td>
+      <td>学习语言规律、世界知识</td>
+      <td>学习对话格式、指令遵循</td>
+    </tr>
+    <tr>
+      <td><strong>训练轮数</strong></td>
+      <td>1-2 个 epoch（数据够多不需要反复看）</td>
+      <td>2-3 个 epoch（数据量小，可以多看几遍）</td>
+    </tr>
+    <tr>
+      <td><strong>权重初始化</strong></td>
+      <td>随机初始化</td>
+      <td>加载预训练权重</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  ⚠️ <strong>注意这个 50 倍的学习率差距！</strong> 预训练用 5e-4，SFT 用 1e-5。为什么？
+  因为预训练权重已经学得很好了，SFT 只是"微调"，用太大学习率会把之前学到的知识"冲掉"。
+  这就像你要改一篇写得不错的文章——用红笔小修小改就好，别把整篇文章划掉重写。
+</div>
+
+<h2>🔍 深入一步：损失计算的区别</h2>
+
+<p>这个区别太重要了，值得单独拿出来讲。先看预训练的损失计算：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># Pre-train：所有 token 都算 loss</span>
+    <br><br>
+    input_ids = [BOS, 在, 很, 久, 很, 久, 以, 前, EOS, PAD, PAD]
+    <br>
+    labels    = [BOS, 在, 很, 久, 很, 久, 以, 前, EOS, PAD, PAD]
+    <br><br>
+    <span class="comment"># 把 PAD 位置设成 -100（忽略）</span>
+    <br>
+    labels[PAD_mask] = <span class="keyword">-100</span>
+    <br><br>
+    <span class="comment"># 所有非 PAD 位置都计算梯度</span>
+    <br>
+    loss = F.cross_entropy(logits, labels, ignore_index=-100)
+  </div>
+  <div class="explain-side">
+    <p><strong>预训练：</strong> 模型读一段文本，预测<strong>每一个位置</strong>的下一个 token。</p>
+    <p>"在"要能预测"很"，"很"要能预测"久"…… <strong>所有非 padding 的位置都在学习</strong>。</p>
+    <p>这就像让一个学生<strong>全文背诵</strong>——每个字都得记住。</p>
+  </div>
+</div>
+
+<p>再看 SFT 的损失计算：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># SFT：只对 assistant 的回答算 loss</span>
+    <br><br>
+    <span class="comment"># 对话格式（token化后）：</span>
+    <br>
+    [BOS, &lt;user&gt;, 今, 天, 天, 气, 怎, 么, 样, &lt;/user&gt;,
+    <br>
+    &nbsp;&lt;assistant&gt;, 今, 天, 晴, 朗, &lt;/assistant&gt;, EOS, PAD]
+    <br><br>
+    <span class="comment"># labels（只保留 assistant 部分的预测目标）</span>
+    <br>
+    labels = [-100, -100, -100, ..., -100,  <span class="comment"># user 部分忽略</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 今, 天, 晴, 朗, &lt;/assistant&gt;, <span class="comment"># assistant 部分保留</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -100, -100]                          <span class="comment"># padding 忽略</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>SFT：</strong> 模型只对 <strong>assistant 的回答部分</strong>计算损失。</p>
+    <p>用户的输入（问题）只是<strong>上下文</strong>，模型要学会在用户问完之后给出好的回答。</p>
+    <p>这就像<strong>考试只批改答案部分</strong>——题目写得再烂也不扣分，但答案必须对。</p>
+  </div>
+</div>
+
+<div class="tip">
+  💡 <strong>为什么要这么做？</strong> 如果不做 mask，模型会学会"预测用户的问题"，但我们其实只关心它<strong>能不能回答好</strong>。
+  而且如果不 mask 用户输入，模型会倾向于<strong>抄袭用户的话</strong>，而不是真正学会回答问题。
+</div>
+
+<h2>📋 MiniMind 中的实现</h2>
+
+<p>我们来看 MiniMind 实际代码中是怎么实现的。先看训练脚本的对比：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># train_pretrain.py</span>
+    <br>
+    <span class="keyword">from</span> dataset.lm_dataset <span class="keyword">import</span> <span class="type">PretrainDataset</span>
+    <br>
+    <span class="keyword">from</span> trainer.trainer_utils <span class="keyword">import</span> get_lr
+    <br><br>
+    <span class="comment"># 学习率：5e-4</span>
+    <br>
+    parser.add_argument(<span class="string">"--learning_rate"</span>,
+    <br>
+    &nbsp;&nbsp;default=<span class="string">5e-4</span>)
+    <br><br>
+    train_ds = <span class="type">PretrainDataset</span>(<span class="string">"../dataset/pretrain_*.jsonl"</span>, tokenizer, max_length=<span class="number">340</span>)
+    <br><br>
+    <span class="comment"># 数据：纯文本，自动加 BOS/EOS</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>预训练配置：</strong></p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li>学习率：<span class="highlight">5e-4</span></li>
+      <li>数据：纯文本 jsonl</li>
+      <li>序列长度：340 token</li>
+      <li>batch size：32</li>
+      <li>梯度累积：8 步</li>
+    </ul>
+  </div>
+</div>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># train_full_sft.py</span>
+    <br>
+    <span class="keyword">from</span> dataset.lm_dataset <span class="keyword">import</span> <span class="type">SFTDataset</span>
+    <br><br>
+    <span class="comment"># 学习率：1e-5（小 50 倍！）</span>
+    <br>
+    parser.add_argument(<span class="string">"--learning_rate"</span>,
+    <br>
+    &nbsp;&nbsp;default=<span class="string">1e-5</span>)
+    <br><br>
+    <span class="comment"># 从预训练权重加载</span>
+    <br>
+    parser.add_argument(<span class="string">'--from_weight'</span>,
+    <br>
+    &nbsp;&nbsp;default=<span class="string">'pretrain'</span>)
+    <br><br>
+    train_ds = <span class="type">SFTDataset</span>(<span class="string">"../dataset/sft_*.jsonl"</span>, tokenizer, max_length=<span class="number">768</span>)
+  </div>
+  <div class="explain-side">
+    <p><strong>SFT 配置：</strong></p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li>学习率：<span class="highlight">1e-5</span>（小 50 倍）</li>
+      <li>数据：对话格式 jsonl</li>
+      <li>序列长度：768 token（更长，因为对话格式占 token）</li>
+      <li>batch size：16（更小，因为序列更长）</li>
+      <li>从预训练权重加载</li>
+    </ul>
+  </div>
+</div>
+
+<h2>🎬 训练流程对比</h2>
+
+<p>有趣的是，两个训练脚本的 <span class="math">train_epoch()</span> 函数<strong>几乎一模一样</strong>！这是因为损失计算被封装到了模型内部：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 两个脚本都这样调用</span>
+    <br>
+    res = model(input_ids, labels=labels)
+    <br>
+    loss = res.loss + res.aux_loss
+    <br>
+    loss = loss / args.accumulation_steps
+    <br>
+    scaler.scale(loss).backward()
+    <br><br>
+    <span class="comment"># loss 的计算在 model 内部：</span>
+    <br>
+    <span class="comment"># MiniMindForCausalLM.forward()</span>
+    <br>
+    x = logits[..., :-1, :].contiguous()
+    <br>
+    y = labels[..., 1:].contiguous()
+    <br>
+    loss = F.cross_entropy(x.view(-1, x.size(-1)), y.view(-1), ignore_index=-100)
+  </div>
+  <div class="explain-side">
+    <p>所以 <strong>loss 计算的区别完全在 labels 的构造上</strong>：</p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li><strong>PretrainDataset</strong> 把所有非 PAD 位置都算 loss</li>
+      <li><strong>SFTDataset</strong> 通过 <span class="highlight">generate_labels()</span> 只保留 assistant 回答部分的 label</li>
+    </ul>
+    <p>模型本身根本不知道自己在做 SFT 还是 Pre-train——它只看到 labels 里有些是 -100（忽略），有些是真正的 token ID。</p>
+  </div>
+</div>
+
+<h2>🧪 一个小实验：SFT 到底学到了什么？</h2>
+
+<p>假设我们有一个预训练好的模型，然后做 SFT：</p>
+
+<div class="figure">
+  <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+    <rect x="30" y="30" width="640" height="50" rx="8" fill="#e2e8f0"/>
+    <text x="50" y="62" font-size="15" fill="#475569">预训练后：模型能续写 "用户：今天天气怎么样？助手：" → "今天天气是一个名词短语"</text>
+
+    <rect x="30" y="110" width="640" height="50" rx="8" fill="#dbeafe"/>
+    <text x="50" y="142" font-size="15" fill="#2563eb">SFT 后：模型能续写 "用户：今天天气怎么样？助手：" → "今天天气晴朗，适合出门散步 ☀️"</text>
+
+    <path d="M 350 80 L 350 110" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,5"/>
+    <text x="360" y="98" font-size="13" fill="#94a3b8">SFT 微调</text>
+
+    <rect x="30" y="190" width="640" height="80" rx="8" fill="#fef3c7"/>
+    <text x="50" y="215" font-size="13" fill="#92400e" font-weight="bold">🧠 核心变化：</text>
+    <text x="50" y="238" font-size="13" fill="#92400e">• 模型学会了对话格式：&lt;user&gt;...&lt;/user&gt;&lt;assistant&gt;...&lt;/assistant&gt;</text>
+    <text x="50" y="258" font-size="13" fill="#92400e">• 模型学会了"有用性"：不是分析问题，而是回答问题</text>
+  </svg>
+  <div class="caption">图：预训练 vs SFT 对同一 prompt 的不同反应</div>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <p><strong>SFT 的核心要点：</strong></p>
+  <ol>
+    <li><strong>架构不变</strong>：SFT 和 Pretrain 用完全一样的模型结构</li>
+    <li><strong>数据格式变了</strong>：从纯文本 → 对话格式（含 role 标记）</li>
+    <li><strong>损失范围变了</strong>：从所有 token → 只对 assistant 回答算 loss</li>
+    <li><strong>学习率小了 50 倍</strong>：1e-5 vs 5e-4，避免"冲掉"预训练知识</li>
+    <li><strong>训练数据量小了</strong>：少量高质量对话数据即可</li>
+    <li><strong>核心目标</strong>：让模型学会"对话"和"指令遵循"，而不是"续写"</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：如果 SFT 时不对用户输入做 mask（即对全部 token 算 loss），会发生什么？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">模型会学会<strong>预测用户的问题</strong>——它会倾向于把用户的话"复述"一遍，而不是回答。
+    而且因为用户输入通常比答案长得多，模型的大部分容量会被浪费在"学会问问题"上，而不是"学会回答问题"。
+    这就像考试时，你花 90% 的精力去背诵题目，只有 10% 的精力去学答题——显然不合理！</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="index.html" class="nav-btn prev">← 返回目录</a>
+  <a href="10-sft-data-pipeline.html" class="nav-btn next">下一章：SFT 数据构建 →</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p>MiniMind 教程 · 第 09 章 · SFT 概览</p>
+</div>
+
+</body>
+</html>

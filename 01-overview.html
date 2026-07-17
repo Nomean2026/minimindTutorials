@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 - 概览 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+  .arch { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 24px 0; padding: 24px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+  .arch .layer { background: #fff; border: 2px solid var(--primary); border-radius: 8px; padding: 8px 24px; font-size: 0.85rem; font-weight: 600; }
+  .arch .layer.input { border-color: var(--success); }
+  .arch .layer.output { border-color: var(--accent); }
+  .arch .arrow { color: var(--text-muted); font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="#" style="color:var(--text-muted);">← 上一章</a>
+  <a href="02-embedding.html">下一章 →</a>
+  <span class="title">第 01 章 · 概览</span>
+</div>
+<div class="container">
+
+<h1>📐 大模型是什么？</h1>
+<p class="subtitle">MiniMind 整体架构鸟瞰——"把大象装进冰箱需要几步？"</p>
+
+<h2>🤔 我们到底在做什么？</h2>
+
+<p>大语言模型（LLM）本质上就是一个超级复杂的 <strong>next token prediction</strong>（下一个词预测）机器。</p>
+
+<p>给它一段文本，它预测下一个最可能出现的 token——然后把这个 token 拼上去，再预测下一个，一直重复下去。</p>
+
+<div class="tip">
+  💡 <strong>一句话总结</strong>：大模型 = "根据上文猜下文"的循环预测器。
+</div>
+
+<h2>🏗️ MiniMind 架构一览</h2>
+
+<p>MiniMind 是一个 <strong>Decoder-Only Transformer</strong> 架构（和 GPT、Llama 一样）。它的整体结构如下：</p>
+
+<div class="arch">
+  <div class="layer input">🔤 Token Embedding（词嵌入）</div>
+  <span class="arrow">↓</span>
+  <div class="layer">🔄 Transformer Block × 8</div>
+  <div class="layer" style="border-color:var(--text-muted);padding:4px 16px;font-size:0.75rem;background:var(--bg-card);">┌─ Self-Attention（自注意力） ─┐<br>└─ Feed-Forward（前馈网络） ──┘</div>
+  <span class="arrow">↓</span>
+  <div class="layer">📏 RMS Norm（层归一化）</div>
+  <span class="arrow">↓</span>
+  <div class="layer output">🎯 LM Head（映射到词汇表）</div>
+</div>
+
+<p>和它背后的核心代码一一对应：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> MiniMindForCausalLM(PreTrainedModel):
+    <span class="keyword">def</span> __init__(self, config):
+        self.model = MiniMindModel(config)
+        <span class="comment"># 预测头：hidden → vocab</span>
+        self.lm_head = nn.Linear(
+            config.hidden_size,
+            config.vocab_size
+        )
+        <span class="comment"># 权重绑定（节省参数）</span>
+        <span class="keyword">if</span> config.tie_word_embeddings:
+            self.model.embed_tokens.weight = \
+                self.lm_head.weight
+
+    <span class="keyword">def</span> forward(self, input_ids, labels=None):
+        <span class="comment"># 通过主干网络</span>
+        hidden_states, presents, aux_loss = \
+            self.model(input_ids)
+        <span class="comment"># 映射到词汇表</span>
+        logits = self.lm_head(hidden_states)
+        <span class="comment"># 计算损失</span>
+        <span class="keyword">if</span> labels <span class="keyword">is not</span> <span class="keyword">None</span>:
+            loss = F.cross_entropy(
+                logits.view(-1, vocab_size),
+                labels.view(-1),
+                ignore_index=-100
+            )
+        <span class="keyword">return</span> logits, loss
+  </div>
+  <div class="explain-side">
+    <p>这就是<strong>整个模型的最外层</strong>——一个 CausalLM（因果语言模型）。</p>
+    <p>它包装了 <code>MiniMindModel</code>（主干网络），加上一个 <code>lm_head</code> 投影到词汇表。</p>
+    <p><span class="highlight">tie_word_embeddings</span>：embedding 层和 lm_head 共享权重，因为输入和输出都是同一个词汇空间。</p>
+  </div>
+</div>
+
+<h2>🧱 MiniMind 核心配置</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>参数</th><th>值</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td><code>hidden_size</code></td><td>768</td><td>每个 token 的向量维度</td></tr>
+    <tr><td><code>num_hidden_layers</code></td><td>8</td><td>Transformer 块的数量</td></tr>
+    <tr><td><code>num_attention_heads</code></td><td>8</td><td>多头注意力的头数</td></tr>
+    <tr><td><code>num_key_value_heads</code></td><td>4</td><td>GQA 的 KV 头数（只有 Q 的一半）</td></tr>
+    <tr><td><code>intermediate_size</code></td><td>~864</td><td>FFN 中间层维度（≈ 768×π/64×64）</td></tr>
+    <tr><td><code>vocab_size</code></td><td>6400</td><td>词汇表大小</td></tr>
+    <tr><td><code>max_position_embeddings</code></td><td>32768</td><td>最大序列长度</td></tr>
+  </tbody>
+</table>
+
+<h2>📐 一个 token 的旅程</h2>
+
+<p>让我们跟踪一个 token 从输入到输出的完整流程：</p>
+
+<ol>
+  <li><strong>输入</strong>：文字 "我" → tokenizer 把它变成数字 ID（比如 523）</li>
+  <li><strong>嵌入</strong>：Embedding 层把 523 变成 768 维向量 [0.12, -0.34, ..., 0.56]</li>
+  <li><strong>8 个 Transformer Block</strong>：每个 Block 都让这个向量"看看周围的 token"（Attention）再"思考一下"（FFN）</li>
+  <li><strong>RMS Norm</strong>：归一化，让数值稳定</li>
+  <li><strong>LM Head</strong>：把 768 维向量映射回 6400 维（每个词一个分数），softmax 后取概率最高的词</li>
+</ol>
+
+<h2>🔢 参数量估算</h2>
+
+<p>MiniMind 到底有多大？我们来算一下：</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--bg-card);"><th>组件</th><th>公式</th><th>参数量</th></tr></thead>
+  <tbody>
+    <tr><td>Embedding</td><td>6400 × 768</td><td>4.92M</td></tr>
+    <tr><td>Attention QKV (×8)</td><td>8 × (768×768 + 768×384 + 768×384)</td><td>8.85M</td></tr>
+    <tr><td>Attention O (×8)</td><td>8 × 768 × 768</td><td>4.72M</td></tr>
+    <tr><td>FFN (×8)</td><td>8 × (768×864 × 3)</td><td>15.93M</td></tr>
+    <tr><td>LM Head</td><td>768 × 6400（与 Embedding 共享）</td><td>0（共享）</td></tr>
+    <tr><td><strong>总计</strong></td><td></td><td><strong>~34.4M</strong></td></tr>
+  </tbody>
+</table>
+
+<div class="tip">
+  💡 <strong>对比一下</strong>：GPT-2 有 1.5B（15 亿）参数，Llama-3-70B 有 700 亿。MiniMind 的 34M 是 GPT-2 的 1/44，但麻雀虽小五脏俱全！
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li>大模型 = <strong>next token prediction</strong>——不断预测下一个词</li>
+    <li>MiniMind 是 <strong>Decoder-Only Transformer</strong>，8 层，768 隐藏维度</li>
+    <li>架构：Embedding → 8×Transformer Block → RMS Norm → LM Head</li>
+    <li>总参数量约 <strong>34.4M</strong>（合适学习的小模型）</li>
+    <li>代码入口：<code>MiniMindForCausalLM</code> 类</li>
+  </ol>
+</div>
+
+<div class="nav-buttons">
+  <a href="index.html" class="nav-btn prev">← 回到首页</a>
+  <a href="02-embedding.html" class="nav-btn next">下一章：词嵌入 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 01 章 · 概览</p></div>
+</body>
+</html>

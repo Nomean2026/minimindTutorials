@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 - 完整模型组装 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="06-norm.html">← 上一章</a>
+  <a href="08-pretrain.html">下一章 →</a>
+  <span class="title">第 07 章 · 完整模型组装</span>
+</div>
+<div class="container">
+
+<h1>🧩 完整模型组装</h1>
+<p class="subtitle">MiniMindModel + MiniMindForCausalLM——"把所有零件拼成一台机器"</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：前 6 章我们分别学了 Embedding、Attention、RoPE、FFN、RMSNorm。现在是时候把这些零件组装起来了！
+</div>
+
+<h2>🏗️ 三个嵌套类的层次结构</h2>
+
+<div style="background:var(--bg-card);border-radius:12px;padding:20px;margin:16px 0;text-align:center;font-size:1rem;">
+  <span style="background:var(--primary);color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;">MiniMindForCausalLM</span><br>
+  <span style="color:var(--text-muted);">│ 包含一个 MiniMindModel</span><br>
+  <span style="color:var(--text-muted);">│ 加一个 lm_head（预测头）</span><br>
+  <span style="color:var(--text-muted);">↓</span><br>
+  <span style="background:var(--accent);color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;">MiniMindModel</span><br>
+  <span style="color:var(--text-muted);">│ 包含 8 个 MiniMindBlock</span><br>
+  <span style="color:var(--text-muted);">↓</span><br>
+  <span style="background:var(--success);color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;">MiniMindBlock × 8</span><br>
+  <span style="color:var(--text-muted);">│ 每个包含 Attention + FFN</span>
+</div>
+
+<h2>🧱 MiniMindBlock</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> MiniMindBlock(nn.Module):
+    <span class="keyword">def</span> __init__(self, layer_id, config):
+        <span class="comment"># Self-Attention</span>
+        self.self_attn = Attention(config)
+
+        <span class="comment"># Pre-Norm</span>
+        self.input_layernorm = RMSNorm(
+            config.hidden_size,
+            eps=config.rms_norm_eps)
+
+        <span class="comment"># Pre-Norm（FFN 之前）</span>
+        self.post_attention_layernorm = \
+            RMSNorm(config.hidden_size,
+                    eps=config.rms_norm_eps)
+
+        <span class="comment"># FFN（Dense 或 MoE）</span>
+        self.mlp = FeedForward(config) \
+            <span class="keyword">if not</span> config.use_moe \
+            <span class="keyword">else</span> MOEFeedForward(config)
+
+    <span class="keyword">def</span> forward(self, hidden_states,
+                position_embeddings,
+                past_key_value, use_cache,
+                attention_mask):
+        <span class="comment"># Pre-Norm + Attention + 残差</span>
+        residual = hidden_states
+        hidden_states = self.self_attn(
+            self.input_layernorm(hidden_states),
+            position_embeddings,
+            past_key_value,
+            use_cache, attention_mask
+        )
+        hidden_states += residual
+
+        <span class="comment"># Pre-Norm + FFN + 残差</span>
+        hidden_states = hidden_states + \
+            self.mlp(
+                self.post_attention_layernorm(
+                    hidden_states
+                )
+            )
+        <span class="keyword">return</span> hidden_states, present
+  </div>
+  <div class="explain-side">
+    <p><strong>一个 Block 的流程：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>保存残差</li>
+      <li><span class="highlight">Pre-Norm</span>：先归一化，再进 Attention</li>
+      <li>Attention 输出 + 残差</li>
+      <li>再次 <span class="highlight">Pre-Norm</span>：归一化后进 FFN</li>
+      <li>FFN 输出 + 残差</li>
+    </ol>
+    <p>这就是经典的 <strong>Pre-LN Transformer Block</strong>！</p>
+    <p>注意 <span class="highlight">config.use_moe</span>——如果启用了 MoE，FFN 会被替换成 MOEFeedForward。</p>
+  </div>
+</div>
+
+<h2>📦 MiniMindModel——8 个 Block 的容器</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> MiniMindModel(nn.Module):
+    <span class="keyword">def</span> __init__(self, config):
+        <span class="comment"># Token Embedding</span>
+        self.embed_tokens = nn.Embedding(
+            config.vocab_size, config.hidden_size)
+
+        <span class="comment"># 8 个 Transformer Block</span>
+        self.layers = nn.ModuleList([
+            MiniMindBlock(l, config)
+            <span class="keyword">for</span> l <span class="keyword">in</span> range(
+                config.num_hidden_layers)
+        ])
+
+        <span class="comment"># 最终归一化</span>
+        self.norm = RMSNorm(
+            config.hidden_size,
+            eps=config.rms_norm_eps)
+
+        <span class="comment"># 预计算 RoPE</span>
+        freqs_cos, freqs_sin = \
+            precompute_freqs_cis(...)
+        self.register_buffer(
+            <span class="string">"freqs_cos"</span>, freqs_cos)
+        self.register_buffer(
+            <span class="string">"freqs_sin"</span>, freqs_sin)
+  </div>
+  <div class="explain-side">
+    <p><strong>MiniMindModel 包含：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><span class="highlight">embed_tokens</span>：第 2 章学的词嵌入</li>
+      <li><span class="highlight">layers</span>：8 个 MiniMindBlock（nn.ModuleList）</li>
+      <li><span class="highlight">norm</span>：最终的 RMSNorm</li>
+      <li><span class="highlight">freqs_cos/sin</span>：第 4 章学的 RoPE 预计算表</li>
+    </ol>
+    <p><span class="highlight">register_buffer</span>：把数据注册为 buffer，不参与梯度计算，但会随模型移动设备。</p>
+  </div>
+</div>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> forward(self, input_ids, ...):
+    <span class="comment"># Embedding</span>
+    hidden_states = self.embed_tokens(input_ids)
+
+    <span class="comment"># 获取 RoPE</span>
+    position_embeddings = (
+        self.freqs_cos[start:start + seq],
+        self.freqs_sin[start:start + seq]
+    )
+
+    <span class="comment"># 8 层 Transformer</span>
+    <span class="keyword">for</span> layer <span class="keyword">in</span> self.layers:
+        hidden_states, present = layer(
+            hidden_states,
+            position_embeddings,
+            past_key_value, use_cache,
+            attention_mask)
+
+    <span class="comment"># 最终归一化</span>
+    hidden_states = self.norm(hidden_states)
+
+    <span class="comment"># 汇总 MoE aux loss</span>
+    aux_loss = sum(...)
+
+    <span class="keyword">return</span> hidden_states, presents, aux_loss
+  </div>
+  <div class="explain-side">
+    <p><strong>forward 流程：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>Embedding 把 token ID 映射为向量</li>
+      <li>从预计算表中截取当前序列的 RoPE</li>
+      <li>逐层通过 8 个 Block</li>
+      <li>最终 RMSNorm</li>
+      <li>返回所有层的 KV Cache（presents）和 MoE 辅助损失</li>
+    </ol>
+    <p><strong>注意</strong>：这里的循环可以用 torch.compile 加速！</p>
+  </div>
+</div>
+
+<h2>🎯 MiniMindForCausalLM——最外层包装</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> MiniMindForCausalLM(
+    PreTrainedModel, GenerationMixin):
+
+    <span class="keyword">def</span> __init__(self, config):
+        self.model = MiniMindModel(config)
+        self.lm_head = nn.Linear(
+            config.hidden_size,
+            config.vocab_size, bias=False)
+
+        <span class="comment"># 权重绑定（省参数！）</span>
+        <span class="keyword">if</span> config.tie_word_embeddings:
+            self.model.embed_tokens.weight = \
+                self.lm_head.weight
+
+    <span class="keyword">def</span> forward(self, input_ids, labels=<span class="keyword">None</span>,
+                logits_to_keep=0):
+        <span class="comment"># 模型计算</span>
+        hidden_states, p, aux = \
+            self.model(input_ids, ...)
+
+        <span class="comment"># 只留最后 logits_to_keep 个</span>
+        logits = self.lm_head(
+            hidden_states[:, -logits_to_keep:])
+
+        <span class="comment"># 计算损失（CausalLM）</span>
+        <span class="keyword">if</span> labels <span class="keyword">is not</span> <span class="keyword">None</span>:
+            x = logits[..., :-1, :].contiguous()
+            y = labels[..., 1:].contiguous()
+            loss = F.cross_entropy(
+                x.view(-1, x.size(-1)),
+                y.view(-1),
+                ignore_index=-100)
+
+        <span class="keyword">return</span> (loss, aux_loss, logits, past)
+  </div>
+  <div class="explain-side">
+    <p><strong>最外层的两个重要设计：</strong></p>
+    <p><strong>1. 继承 PreTrainedModel</strong>：自动获得 HuggingFace 的 save_pretrained、from_pretrained 等能力</p>
+    <p><strong>2. 继承 GenerationMixin</strong>：自动获得 generate() 方法，支持各种采样策略</p>
+    <p><strong>logits_to_keep</strong>：只计算最后几个 token 的 logits——推理时只用最后一个 token，不需要算全部。</p>
+    <p><strong>损失计算</strong>：<span class="highlight">logits[..., :-1]</span> 和 <span class="highlight">labels[..., 1:]</span> 对齐——预测每个位置的下一个 token。</p>
+  </div>
+</div>
+
+<h2>📐 数据流全景图</h2>
+
+<div style="background:var(--bg-card);border-radius:12px;padding:20px;margin:16px 0;font-size:0.9rem;">
+  <pre style="font-family:monospace;line-height:1.5;">
+输入: [batch, seq] — token ID（如 [523, 890, 1245]）
+  │
+  ▼ Embedding (6400 → 768)
+  [batch, seq, 768] — 稠密向量
+  │
+  ▼ + Dropout
+  [batch, seq, 768]
+  │
+  ▼ MiniMindBlock × 8（每个 Block 内）
+  │  ├─ RMSNorm → Attention → + 残差
+  │  └─ RMSNorm → FFN → + 残差
+  │
+  ▼ RMSNorm（最终归一化）
+  [batch, seq, 768]
+  │
+  ▼ LM Head (768 → 6400)
+  [batch, seq, 6400] — 每个 token 的词汇表分数
+  │
+  ▼ Softmax（取最后一个 token）
+  [batch, vocab] — 下一个 token 的概率分布
+  </pre>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>三层嵌套</strong>：MiniMindForCausalLM → MiniMindModel → MiniMindBlock</li>
+    <li><strong>每个 Block</strong>：Pre-Norm → Attention → 残差 → Pre-Norm → FFN → 残差</li>
+    <li><strong>Model</strong>：Embedding + 8 个 Block + 最终 RMSNorm</li>
+    <li><strong>CausalLM</strong>：包上 lm_head + 损失计算 + 继承 HuggingFace 接口</li>
+    <li><strong>权重绑定</strong>：Embedding 和 LM Head 共享参数</li>
+    <li><strong>logits_to_keep</strong>：推理时只算最后一个 token，减少计算量</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：MiniMindForCausalLM 继承 PreTrainedModel 和 GenerationMixin 带来了什么好处？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">这两个基类是 HuggingFace transformers 库的核心：</p>
+    <ol>
+      <li><strong>PreTrainedModel</strong>：提供了
+        <ul>
+          <li><code>save_pretrained()</code> / <code>from_pretrained()</code>——标准的模型保存和加载</li>
+          <li><code>post_init()</code>——自动初始化权重</li>
+          <li>自动处理 device 映射、dtype 转换等</li>
+        </ul>
+      </li>
+      <li><strong>GenerationMixin</strong>：提供了
+        <ul>
+          <li><code>generate()</code>——完整的自回归生成流程</li>
+          <li>支持各种采样策略（greedy、beam search、sampling）</li>
+          <li>支持 KV Cache、streamer 等高级特性</li>
+        </ul>
+      </li>
+    </ol>
+    <p>简单说：有了这两个基类，MiniMind 可以用和 GPT/Llama 一样的 API 加载和推理！</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="06-norm.html" class="nav-btn prev">← 上一章：层归一化</a>
+  <a href="08-pretrain.html" class="nav-btn next">下一章：预训练实战 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 07 章 · 完整模型组装</p></div>
+</body>
+</html>

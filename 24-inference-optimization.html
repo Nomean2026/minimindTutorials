@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>24 - 推理优化 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; color: #7c3aed; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #7c3aed; }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: #7c3aed; }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #6d28d9; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .code-side .highlight-code { background: #a855f7; color: #fff; padding: 0 4px; border-radius: 2px; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: #7c3aed; color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: #f5f3ff; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: #7c3aed; color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; font-size: 1.1rem; text-align: center; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+  .speed-meter { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .speed-meter .bar { flex: 1; height: 24px; background: var(--border); border-radius: 12px; overflow: hidden; }
+  .speed-meter .bar .fill { height: 100%; border-radius: 12px; display: flex; align-items: center; padding-left: 8px; font-size: 0.7rem; color: #fff; font-weight: 700; }
+  .speed-meter .label { width: 80px; font-size: 0.85rem; font-weight: 600; }
+  .kv-cache-vis { display: flex; align-items: center; gap: 16px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }
+  .kv-cache-vis .kv-box { border-radius: 8px; padding: 16px; text-align: center; min-width: 120px; font-size: 0.88rem; }
+  .kv-cache-vis .kv-box.k { background: #dbeafe; border: 2px solid var(--primary); }
+  .kv-cache-vis .kv-box.v { background: #fce7f3; border: 2px solid #ec4899; }
+  .kv-cache-vis .arrow-kv { font-size: 1.5rem; color: var(--text-muted); }
+  .kv-cache-vis .kv-box .head { font-weight: 700; }
+  .kv-cache-vis .kv-box .dims { font-size: 0.75rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="23-distillation.html">← 上一章</a>
+  <a href="index.html">🏠 回到首页</a>
+  <span class="title">第 24 章 · 推理优化</span>
+</div>
+<div class="container">
+
+<h1>⚡ 推理优化</h1>
+<p class="subtitle">KV Cache、Flash Attention、量化——让模型跑得又准又快</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li><strong>LoRA</strong> 和 <strong>蒸馏</strong> 主要关注<strong>训练阶段</strong>的效率</li>
+    <li>但<strong>推理阶段</strong>才是大模型真正"烧钱"的地方——每次对话都要跑一次</li>
+    <li>MiniMind 的 generate() 函数中已经包含了<strong>KV Cache</strong>（use_cache=True）</li>
+  </ul>
+</div>
+
+<h2>🚀 推理最慢的两个瓶颈</h2>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:16px 0;">
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="color:#dc2626;margin:0 0 8px;">🐢 瓶颈 1：Self-Attention 的 O(n²)</h4>
+    <p style="font-size:0.9rem;">每生成一个 token，注意力层要重新计算所有 token 之间的注意力分数——当前序列长 1000，就要算 1000² 次。</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">解决方案：<strong>KV Cache</strong></p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="color:#dc2626;margin:0 0 8px;">🐢 瓶颈 2：Attention 的显存访问</h4>
+    <p style="font-size:0.9rem;">标准 Attention 需要频繁读写 HBM（高带宽显存），计算过程受限于显存带宽而非算力。</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">解决方案：<strong>Flash Attention</strong></p>
+  </div>
+</div>
+
+<h2>🗂️ 技术一：KV Cache</h2>
+
+<h3>问题：每次生成都要重新计算吗？</h3>
+
+<p>没有 KV Cache 时，自回归生成的过程是：</p>
+
+<table class="compare-table">
+  <thead><tr><th>Step</th><th>输入</th><th>要生成的 token</th><th>注意力范围</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>"我爱吃"</td><td>预填充（prefill）</td><td>"我"→"爱"→"吃"</td></tr>
+    <tr><td>2</td><td>"我爱吃&#60;i&#62;"</td><td>"苹果"</td><td>"我"→"爱"→"吃"→"苹" ← 重新算了前面！</td></tr>
+    <tr><td>3</td><td>"我爱吃苹"</td><td>"果"</td><td>"我"→"爱"→"吃"→"苹"→"果" ← 又重算了！</td></tr>
+    <tr><td>…</td><td>…</td><td>…</td><td>每次都在重复前面的计算</td></tr>
+  </tbody>
+</table>
+
+<p>每次生成新 token 时，Attention 都会把前面所有的 QKV 重新算一遍——But 前面 token 的 K 和 V 完全没变！</p>
+
+<h3>解决方案：缓存 K 和 V</h3>
+
+<div class="kv-cache-vis">
+  <div class="kv-box k">
+    <div class="head">🔑 K Cache</div>
+    <div class="dims">[seq, n_kv_heads, head_dim]</div>
+    <div style="font-size:0.8rem;margin-top:4px;">随着生成不断增长</div>
+  </div>
+  <span class="arrow-kv">+</span>
+  <div class="kv-box v">
+    <div class="head">💜 V Cache</div>
+    <div class="dims">[seq, n_kv_heads, head_dim]</div>
+    <div style="font-size:0.8rem;margin-top:4px;">随着生成不断增长</div>
+  </div>
+</div>
+
+<p>有了 KV Cache，生成变成这样：</p>
+<ol>
+  <li><strong>Step 1 预填充</strong>：计算 prompt 所有 token 的 K 和 V，缓存起来</li>
+  <li><strong>Step 2</strong>：只算当前 token 的 Q，从缓存中取之前所有 K 和 V</li>
+  <li><strong>Step 3</strong>：只算当前 token 的 Q，把新的 K/V 追加到缓存</li>
+</ol>
+
+<div class="speed-meter">
+  <div class="label">无 Cache</div>
+  <div class="bar"><div class="fill" style="width:20%;background:#94a3b8;">20%</div></div>
+</div>
+<div class="speed-meter">
+  <div class="label">有 KV Cache</div>
+  <div class="bar"><div class="fill" style="width:100%;background:var(--primary);">100%</div></div>
+</div>
+
+<div class="tip">
+  💡 <strong>加速效果</strong>：KV Cache 在长序列生成中可以达到 <strong>10-20 倍</strong>的加速。
+  因为无 Cache 时，生成第 n 个 token 需要 O(n²) 的注意力计算；
+  有 Cache 时，只需要 O(n)（只算新 token 的 Q 和所有缓存的 K 的点积）。
+</div>
+
+<h3>MiniMind 中的 KV Cache</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># Attention.forward 中的 KV Cache</span>
+<span class="keyword">def</span> forward(self, x, position_embeddings,
+              past_key_value=<span class="keyword">None</span>,
+              use_cache=False):
+    xq, xk, xv = self.q_proj(x), ...
+    xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin)
+
+    <span class="comment"># 🔥 KV Cache 拼接</span>
+    <span class="keyword">if</span> past_key_value <span class="keyword">is not</span> <span class="keyword">None</span>:
+        xk = torch.cat(
+            [past_key_value[0], xk], dim=1)
+        xv = torch.cat(
+            [past_key_value[1], xv], dim=1)
+
+    <span class="comment"># 更新 cache</span>
+    past_kv = (xk, xv) <span class="keyword">if</span> use_cache \
+              <span class="keyword">else</span> <span class="keyword">None</span>
+
+    <span class="comment"># 注意力计算</span>
+    scores = (xq @ xk.transpose(-2, -1)) ...
+    output = F.softmax(scores, dim=-1) @ xv
+  </div>
+  <div class="explain-side">
+    <p><strong>代码中的 KV Cache：</strong></p>
+    <p><span class="highlight">past_key_value</span>：从外部传入之前缓存的所有 K 和 V。</p>
+    <p><span class="highlight">torch.cat</span>：把当前 token 的 K/V 拼接到缓存后面。</p>
+    <p><span class="highlight">past_kv</span>：更新后的缓存返回给上层，供下一步使用。</p>
+    <p><strong>在 generate() 中：</strong></p>
+    <p>每次只传入<strong>当前 token</strong>（past_len 之后的部分），配合前面的缓存计算注意力。</p>
+  </div>
+</div>
+
+<h2>💥 技术二：Flash Attention</h2>
+
+<h3>问题：标准 Attention 的"内存墙"</h3>
+
+<p>标准 Attention 的计算过程：</p>
+<div style="background:var(--bg-card); border-radius:8px; padding:12px; margin:8px 0; font-family: monospace; font-size: 0.85rem;">
+  S = Q @ K.T  →  写入 HBM  ← 慢！<br>
+  P = softmax(S) → 读取 S ← 慢！<br>
+  O = P @ V     → 写入 HBM ← 慢！
+</div>
+
+<p>标准 Attention 的问题：中间矩阵 S 和 P 要 <strong>反复读写 HBM</strong>（高带宽显存）。
+HBM 的带宽远不如 SRAM（片上缓存），所以 Attention 受限于<strong>显存带宽</strong>而非算力。</p>
+
+<h3>解决方案：Flash Attention 的核心思想</h3>
+
+<p>Flash Attention 做了三件事来提速：</p>
+
+<ol>
+  <li><strong>分块计算（Tiling）</strong>：把 Q、K、V 分成小块，在 SRAM 上逐块计算，避免 HBM 读写</li>
+  <li><strong>重计算（Recomputation）</strong>：反向传播时不保存中间矩阵 S，而是重算——省显存！</li>
+  <li><strong>融合 kernel</strong>：把 S = QK.T, softmax, O = PV 融合成一个 GPU kernel</li>
+</ol>
+
+<div class="speed-meter">
+  <div class="label">标准 Attn</div>
+  <div class="bar"><div class="fill" style="width:30%;background:#94a3b8;">30%</div></div>
+</div>
+<div class="speed-meter">
+  <div class="label">Flash Attn</div>
+  <div class="bar"><div class="fill" style="width:100%;background:#7c3aed;">100%</div></div>
+</div>
+
+<h3>MiniMind 中的 Flash Attention</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 检测是否支持 Flash Attention</span>
+self.flash = hasattr(F, 'scaled_dot_product_attention') \
+              <span class="keyword">and</span> config.flash_attn
+
+<span class="keyword">if</span> self.flash <span class="keyword">and</span> (seq_len &gt; 1) <span class="keyword">and</span> \
+   (attention_mask <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> \
+    torch.all(attention_mask == 1)):
+    <span class="comment"># PyTorch 内置的 Flash Attention</span>
+    output = F.scaled_dot_product_attention(
+        xq, xk, xv,
+        dropout_p=self.dropout,
+        is_causal=self.is_causal
+    )
+<span class="keyword">else</span>:
+    <span class="comment"># 标准的 Attention 实现（降级）</span>
+    scores = xq @ xk.transpose(-2, -1)
+    scores = F.softmax(scores, dim=-1) @ xv
+  </div>
+  <div class="explain-side">
+    <p><strong>关键理解：</strong></p>
+    <p>MiniMind 通过 <span class="highlight">F.scaled_dot_product_attention</span> 使用 PyTorch 内置的 Flash Attention 实现。</p>
+    <p>它只有一行代码，但内部做了大量优化！</p>
+    <p><strong>降级条件：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><strong>seq_len &gt; 1</strong>：单 token 生成时（有 KV Cache），用 Flash 不划算</li>
+      <li><strong>attention_mask 全 1</strong>：有 padding mask 时无法直接用 Flash</li>
+      <li><strong>config.flash_attn</strong>：用户手动开关</li>
+    </ol>
+    <p>这确保了在<strong>预填充阶段</strong>（处理整个 prompt）使用 Flash Attention 加速，在<strong>逐 token 生成阶段</strong>使用标准注意力（因为每次只有一个 token，差距不大）。</p>
+  </div>
+</div>
+
+<h2>🔢 技术三：量化（Quantization）</h2>
+
+<h3>问题：FP16 太"胖"了</h3>
+
+<p>模型默认用 FP16（16 位浮点数）存储参数。每个参数占 2 字节。一个 7B 模型需要 14GB 显存——刚好超过 RTX 3090 的 24GB（还有 KV Cache 的开销）。</p>
+
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin:16px 0;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>FP32</h4>
+    <p style="font-size:1.5rem;font-weight:700;color:#dc2626;">32 bit</p>
+    <p style="font-size:0.85rem;">4 字节/参数</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--primary); border-radius:10px; padding:14px; text-align:center;">
+    <h4>FP16 / BF16</h4>
+    <p style="font-size:1.5rem;font-weight:700;color:var(--primary);">16 bit</p>
+    <p style="font-size:0.85rem;">2 字节/参数</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--success); border-radius:10px; padding:14px; text-align:center;">
+    <h4>INT8 / INT4</h4>
+    <p style="font-size:1.5rem;font-weight:700;color:var(--success);">8/4 bit</p>
+    <p style="font-size:0.85rem;">1/0.5 字节/参数</p>
+  </div>
+</div>
+
+<table class="compare-table">
+  <thead><tr><th>精度</th><th>7B 模型大小</th><th>推理速度</th><th>效果损失</th></tr></thead>
+  <tbody>
+    <tr><td>FP16</td><td>14 GB</td><td>1x</td><td>无</td></tr>
+    <tr><td>INT8</td><td>7 GB</td><td>~1.5x</td><td>几乎无</td></tr>
+    <tr><td>INT4</td><td>3.5 GB</td><td>~2x</td><td>轻微</td></tr>
+  </tbody>
+</table>
+
+<h3>量化的本质</h3>
+
+<div class="formula-box">
+  <strong>量化公式</strong>：<br>
+  <span class="math">W<sub>quant</sub> = round(W<sub>fp</sub> / s) + z</span><br><br>
+  其中 s = scale（缩放因子），z = zero-point（零点偏移）<br>
+  <span class="math">W<sub>dequant</sub> = (W<sub>quant</sub> - z) × s</span>
+</div>
+
+<h3>两种主要量化方式</h3>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:16px 0;">
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px; border:1px solid var(--primary);">
+    <h4 style="margin:0 0 8px;color:var(--primary);">🔧 训练后量化（PTQ）</h4>
+    <p style="font-size:0.85rem;">训练完后，直接对权重做量化。</p>
+    <p style="font-size:0.85rem;">简单快速，但低精度（如 INT4）时精度损失较大。</p>
+  </div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px; border:1px solid var(--success);">
+    <h4 style="margin:0 0 8px;color:var(--success);">🔧 量化感知训练（QAT）</h4>
+    <p style="font-size:0.85rem;">训练时就模拟量化效果，让模型学会适应低精度。</p>
+    <p style="font-size:0.85rem;">效果好，但需要额外训练开销。</p>
+  </div>
+</div>
+
+<h2>🚀 三种技术协同工作</h2>
+
+<p>在现代推理引擎中，这些技术是<strong>组合使用</strong>的：</p>
+
+<div style="background: linear-gradient(135deg, #f5f3ff, #f0f9ff); border-radius: 16px; padding: 20px; margin: 20px 0;">
+  <div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
+    <span style="background:#7c3aed; color:#fff; border-radius:20px; padding:8px 16px; font-size:0.85rem;">⚡ Flash Attention</span>
+    <span style="color:var(--text-muted);">→</span>
+    <span style="background:var(--primary); color:#fff; border-radius:20px; padding:8px 16px; font-size:0.85rem;">🗂️ KV Cache</span>
+    <span style="color:var(--text-muted);">→</span>
+    <span style="background:var(--success); color:#fff; border-radius:20px; padding:8px 16px; font-size:0.85rem;">🔢 INT4 量化</span>
+    <span style="color:var(--text-muted);">→</span>
+    <span style="background:var(--accent); color:#fff; border-radius:20px; padding:8px 16px; font-size:0.85rem;">🚀 X推理</span>
+  </div>
+</div>
+
+<p><strong>在一个推理请求中，每个技术的角色：</strong></p>
+
+<ol>
+  <li><strong>预填充阶段</strong>（处理整个 prompt）：Flash Attention 加速整个 prompt 的注意力计算</li>
+  <li><strong>自回归生成阶段</strong>（逐 token 生成）：KV Cache 缓存历史 token 的 K/V，避免重复计算</li>
+  <li><strong>全程</strong>：INT4/INT8 量化让模型参数更小，在同样的显存下能放更大的模型或更长的 KV Cache</li>
+</ol>
+
+<h2>📊 MiniMind 生成函数中的优化汇总</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> generate(self, inputs, max_new_tokens=8192,
+               temperature=0.85, top_p=0.85, top_k=50,
+               use_cache=<span class="keyword">True</span>):
+    <span class="comment"># use_cache=True: KV Cache 启用 ✅</span>
+    past_key_values = kwargs.pop(
+        <span class="string">'past_key_values'</span>, <span class="keyword">None</span>)
+    <span class="keyword">for</span> _ <span class="keyword">in</span> range(max_new_tokens):
+        past_len = past_key_values[0][0].shape[1] \
+                   <span class="keyword">if</span> past_key_values <span class="keyword">else</span> 0
+        <span class="comment"># 只传入当前 token！</span>
+        outputs = self.forward(
+            input_ids[:, past_len:],
+            past_key_values, use_cache=use_cache)
+        logits = outputs.logits[:, -1, :]
+        <span class="comment"># 采样策略（学过的）</span>
+        ...  <span class="comment"># top_k, top_p, temperature</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>MiniMind generate() 中的优化：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><span class="highlight">use_cache=True</span>：启用 KV Cache ✅</li>
+      <li><span class="highlight">input_ids[:, past_len:]</span>：只传入当前 token，不重新输入完整的序列</li>
+      <li><span class="highlight">F.scaled_dot_product_attention</span>：Flash Attention 加速预填充 ✅</li>
+      <li>Top-K/Top-P/Temperature 采样（第 12 章学过的内容）</li>
+    </ol>
+  </div>
+</div>
+
+<h2>📝 完整课程回顾</h2>
+
+<div style="background: linear-gradient(135deg, #f0f9ff, #f5f3ff, #f0fdf4); border: 3px solid var(--primary); border-radius: 16px; padding: 24px; margin: 24px 0;">
+  <h3 style="margin-top:0;">🎓 24 章课程到此结束！</h3>
+  <p>从最小的 Transformer 到 RLHF，从 Dense 到 MoE，从全量微调到量化推理——</p>
+  <p>我们已经完成了一个完整的 <strong>MiniMind 大模型从零到一的旅程</strong>！</p>
+
+  <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin:16px 0;">
+    <div style="background:#fff; border-radius:8px; padding:10px; text-align:center; font-size:0.8rem;">
+      📐 <strong>阶段一</strong><br>基础篇 1-8
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:10px; text-align:center; font-size:0.8rem;">
+      📝 <strong>阶段二</strong><br>SFT 篇 9-12
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:10px; text-align:center; font-size:0.8rem;">
+      🧠 <strong>阶段三</strong><br>MoE 篇 13-17
+    </div>
+    <div style="background:#fff; border-radius:8px; padding:10px; text-align:center; font-size:0.8rem;">
+      🎯 <strong>阶段四</strong><br>RLHF 篇 18-21
+    </div>
+  </div>
+  <div style="text-align:center; font-size:0.9rem; color:var(--text-muted);">
+    + 🎛️ LoRA · 🧪 蒸馏 · ⚡ 推理优化（22-24）
+  </div>
+</div>
+
+<div class="tip">
+  <h3>📝 本章小结</h3>
+  <ol>
+    <li><strong>KV Cache</strong>：缓存历史 token 的 K 和 V，每次只计算当前 token 的 Q，避免重复计算</li>
+    <li><strong>加速效果</strong>：长序列生成时 10-20 倍加速</li>
+    <li><strong>Flash Attention</strong>：分块计算 + 内核融合，解决 Attention 的"内存墙"问题</li>
+    <li><strong>PyTorch 内置</strong>：F.scaled_dot_product_attention 一行代码开启</li>
+    <li><strong>量化</strong>：INT4/INT8 将模型压缩 2-4 倍，几乎不损失效果</li>
+    <li><strong>PTQ vs QAT</strong>：简单快速 vs 精度更高的两种量化方式</li>
+    <li><strong>协同工作</strong>：Flash Attention（预填充）+ KV Cache（逐 token）+ 量化（减少显存）</li>
+    <li><strong>MiniMind 中的三种技术</strong>：都已内置或易于集成</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>终极思考题</strong>：假设你要用 MiniMind 做一个实时对话机器人，推理延迟要求在 100ms 以内。
+  你会如何组合使用本章介绍的技术？如果还不够，你还会使用什么方法？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">这是一个很好的实际问题。假设 MiniMind（768 隐藏层，8 层，6400 vocab）在 RTX 4090 上推理：</p>
+    <ol>
+      <li><strong>基础方案</strong>：Flash Attention + KV Cache + INT8 量化 → 约每秒 100+ tokens，首 token 延迟约 20-40ms</li>
+      <li><strong>如果还不够</strong>：
+        <ul>
+          <li><strong>Speculative Decoding</strong>：用一个更小（如 384 隐藏层）的草稿模型先快速生成，再用 MiniMind 验证</li>
+          <li><strong>Continuous Batching</strong>：把多个用户的请求合并成一个批次，提高 GPU 利用率</li>
+          <li><strong>PageAttention / vLLM</strong>：像操作系统的虚拟内存一样管理 KV Cache，减少显存碎片</li>
+          <li><strong>模型剪裁</strong>：用前面学到的蒸馏技术压缩到更小的模型</li>
+        </ul>
+      </li>
+      <li><strong>终极方案</strong>：MiniMind 蒸馏 + INT4 量化 + Speculative Decoding + vLLM 部署</li>
+    </ol>
+    <p>这就是为什么大模型推理优化是一个 <strong>系统工程</strong>——没有银弹，需要多种技术协同工作！</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="23-distillation.html" class="nav-btn prev">← 上一章：知识蒸馏</a>
+  <a href="index.html" class="nav-btn next" style="background: var(--success); color: #fff;">🏠 回到首页 🎉</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 24 章 · 推理优化 · 🎉 完结撒花</p></div>
+</body>
+</html>

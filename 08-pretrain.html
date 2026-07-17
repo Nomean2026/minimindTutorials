@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 - 预训练实战 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; font-size: 1.05rem; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="07-model-assembly.html">← 上一章</a>
+  <a href="09-sft-overview.html">下一章 →</a>
+  <span class="title">第 08 章 · 预训练实战</span>
+</div>
+<div class="container">
+
+<h1>🏋️ 预训练实战</h1>
+<p class="subtitle">数据加载、损失计算、训练循环——"让模型学会语言的规律"</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：前面 7 章我们搭建了 MiniMind 模型架构。但模型不会自己变聪明——它需要看大量文本、不断预测下一个 token、从错误中学习。这就是预训练！
+</div>
+
+<h2>🎯 预训练的目标</h2>
+
+<div class="formula-box">
+  <strong>目标</strong>：最大化 P(token<sub>t+1</sub> | token<sub>1</sub>, token<sub>2</sub>, …, token<sub>t</sub>)<br><br>
+  <strong>损失函数</strong>：L = -1/N · Σ<sub>t</sub> log P(token<sub>t+1</sub> | token<sub><t</sub>)
+</div>
+
+<p>就是——给你前面一堆词，猜下一个词是啥。猜错了就"扣分"（loss），猜对了就"加分"。</p>
+
+<h2>🗂️ 数据加载（PretrainDataset）</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> PretrainDataset(Dataset):
+    <span class="keyword">def</span> __init__(self, data_path,
+                 tokenizer, max_length=512):
+        <span class="comment"># 从 JSONL 加载数据</span>
+        self.samples = load_dataset(
+            <span class="string">'json'</span>,
+            data_files=data_path,
+            split=<span class="string">'train'</span>)
+
+    <span class="keyword">def</span> __getitem__(self, index):
+        sample = self.samples[index]
+        <span class="comment"># tokenize</span>
+        tokens = self.tokenizer(
+            str(sample[<span class="string">'text'</span>])
+        ).input_ids
+
+        <span class="comment"># 加 BOS 和 EOS</span>
+        tokens = [self.tokenizer.bos_token_id] \
+                 + tokens \
+                 + [self.tokenizer.eos_token_id]
+
+        <span class="comment"># padding 到 max_length</span>
+        pad_len = self.max_length - len(tokens)
+        input_ids = tokens + \
+            [self.tokenizer.pad_token_id] * pad_len
+
+        <span class="comment"># labels = input_ids（padding 部分忽略）</span>
+        labels = input_ids.clone()
+        labels[input_ids ==
+               self.tokenizer.pad_token_id] = -100
+        <span class="keyword">return</span> input_ids, labels
+  </div>
+  <div class="explain-side">
+    <p><strong>数据加载的核心逻辑：</strong></p>
+    <p><span class="highlight">load_dataset('json')</span>：从 JSONL 文件加载，每行是一个 JSON 对象，包含 "text" 字段。</p>
+    <p><span class="highlight">bos_token / eos_token</span>：在文本前后添加开始和结束标记。</p>
+    <p><span class="highlight">pad_token_id</span>：padding 到统一长度，方便 batch 计算。</p>
+    <p><span class="highlight">labels[...] = -100</span>：padding 部分的 label 设为 -100，CrossEntropy Loss 会自动忽略。</p>
+  </div>
+</div>
+
+<div class="tip">
+  💡 <strong>预训练数据长什么样？</strong>
+  <pre style="background:var(--code-bg);color:var(--code-text);padding:12px;border-radius:8px;">
+{"text": "机器学习是人工智能的一个分支，它使计算机能够从数据中学习和改进……"}
+{"text": "在深度学习中，Transformer 架构已经成为自然语言处理的主流……"}
+{"text": "北京是中国的首都，拥有悠久的历史和丰富的文化遗产……"}</pre>
+  <p>就是纯文本，没有任何格式——模型从这些文本中学习语言规律和世界知识。</p>
+</div>
+
+<h2>📊 损失计算</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># MiniMindForCausalLM.forward 中</span>
+<span class="keyword">def</span> forward(self, input_ids, labels):
+    <span class="comment"># 通过模型</span>
+    hidden_states, presents, aux_loss = \
+        self.model(input_ids)
+    logits = self.lm_head(hidden_states)
+
+    <span class="comment"># logits 和 labels 对齐</span>
+    <span class="comment"># logits[t] 预测的是 labels[t+1]</span>
+    shift_logits = logits[..., :-1, :]
+    shift_labels = labels[..., 1:]
+
+    <span class="comment"># CrossEntropy（自动忽略 -100）</span>
+    loss = F.cross_entropy(
+        shift_logits.reshape(-1, vocab_size),
+        shift_labels.reshape(-1),
+        ignore_index=-100
+    )
+
+    <span class="keyword">return</span> loss + aux_loss
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么 logits 和 labels 要偏移一位？</strong></p>
+    <p>因为输入是 [token₁, token₂, token₃, ...]，</p>
+    <p>输出 logits 是每个位置的预测，</p>
+    <p>logits[0] 预测的是 <strong>token₂</strong>（位置 1 的下一个词），</p>
+    <p>logits[1] 预测的是 <strong>token₃</strong>（位置 2 的下一个词），</p>
+    <p>所以 labels 要 <strong>向右移动一位</strong>。</p>
+    <p><span class="highlight">ignore_index=-100</span>：padding 位置不参与 loss 计算。</p>
+  </div>
+</div>
+
+<h2>🏃 训练循环（train_pretrain.py）</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 训练配置</span>
+batch_size = 32
+learning_rate = 5e-4
+epochs = 2
+max_seq_len = 340
+dtype = <span class="string">'bfloat16'</span>
+accumulation_steps = 8
+grad_clip = 1.0
+
+<span class="comment"># 学习率调度（余弦退火）</span>
+<span class="keyword">def</span> get_lr(step, total_steps, lr):
+    <span class="keyword">return</span> lr * (0.1 + 0.45 * (
+        1 + math.cos(
+            math.pi * step / total_steps
+        )))
+
+<span class="comment"># 训练循环</span>
+<span class="keyword">for</span> epoch <span class="keyword">in</span> range(epochs):
+    <span class="keyword">for</span> step, (x, y) <span class="keyword">in</span> enumerate(loader):
+        <span class="keyword">with</span> autocast_ctx:
+            res = model(x, labels=y)
+            loss = (res.loss + res.aux_loss) \
+                   / accumulation_steps
+
+        scaler.scale(loss).backward()
+
+        <span class="keyword">if</span> step % accumulation_steps == 0:
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
+  </div>
+  <div class="explain-side">
+    <p><strong>训练中的几个关键技术：</strong></p>
+    <p><strong>1. 余弦学习率衰减</strong></p>
+    <p>学习率从峰值按照余弦曲线逐渐下降到 10%。<br>公式：<span class="math">lr = lr<sub>max</sub> × (0.1 + 0.45 × (1 + cos(π × step / total)))</span></p>
+    <p><strong>2. 梯度累积</strong></p>
+    <p>accumulation_steps=8，实际 batch size = 32 × 8 = 256。</p>
+    <p><strong>3. 混合精度</strong></p>
+    <p>用 bfloat16 训练，减少显存、加速计算。</p>
+    <p><strong>4. 梯度裁剪</strong></p>
+    <p>grad_clip=1.0，防止梯度爆炸。</p>
+  </div>
+</div>
+
+<h2>⚙️ 主要超参数对比</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>超参数</th><th>预训练</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td>learning_rate</td><td>5e-4</td><td>较大，因为要从头学习</td></tr>
+    <tr><td>batch_size</td><td>32（累积 8 步 = 256）</td><td>大量文本数据，需要大 batch</td></tr>
+    <tr><td>max_seq_len</td><td>340</td><td>预训练文本通常较短</td></tr>
+    <tr><td>epochs</td><td>2</td><td>数据量大，不需要太多轮次</td></tr>
+    <tr><td>dtype</td><td>bfloat16</td><td>混合精度训练</td></tr>
+  </tbody>
+</table>
+
+<h2>🔍 预训练 vs SFT 一句话总结</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>维度</th><th>预训练</th><th>SFT（下章学）</th></tr></thead>
+  <tbody>
+    <tr><td>数据</td><td>海量纯文本</td><td>高质量对话对</td></tr>
+    <tr><td>目标</td><td>学会语言</td><td>学会对话</td></tr>
+    <tr><td>Loss</td><td>全部 token 都算</td><td>只算 assistant 回答</td></tr>
+    <tr><td>LR</td><td>5e-4（大）</td><td>1e-5（小 50 倍）</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 阶段一总结（01-08）</h2>
+
+<div style="background: linear-gradient(135deg, #f0f9ff, #f0fdf4); border-radius: 16px; padding: 24px; margin: 24px 0;">
+  <p>恭喜！你已经完成了<strong>基础篇 8 章</strong>的学习！</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;">
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>01</strong><br><span style="font-size:0.8rem;">模型概览</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>02</strong><br><span style="font-size:0.8rem;">词嵌入</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>03</strong><br><span style="font-size:0.8rem;">注意力机制</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>04</strong><br><span style="font-size:0.8rem;">RoPE 编码</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>05</strong><br><span style="font-size:0.8rem;">前馈网络</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>06</strong><br><span style="font-size:0.8rem;">层归一化</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>07</strong><br><span style="font-size:0.8rem;">模型组装</span>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+      <strong>08</strong><br><span style="font-size:0.8rem;">预训练实战</span>
+    </div>
+  </div>
+  <p>接下来进入 <strong>SFT 篇</strong>——让模型学会"对话"而非只是"接词"！</p>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：预训练 Loss 最终会收敛到什么值？MiniMind vocab_size=6400，如果模型完全随机瞎猜，
+  理论 loss 应该是多少？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">如果模型完全随机预测（每个词概率均匀 1/6400），则：</p>
+    <ol>
+      <li><span class="math">P(token) = 1/6400</span></li>
+      <li><span class="math">CE Loss = -log(1/6400) = log(6400) ≈ 8.76</span></li>
+    </ol>
+    <p>所以预训练的 loss 应该在 <strong>8.76（完全随机）→ ~3.0（开始有规律）→ ~1.0~2.0（不错了）</strong> 之间下降。</p>
+    <p>和分类任务不同，语言的 CE Loss 不会降到 0——因为语言本身就是有"不确定性"的（"我明天要去___"，
+    可以是"北京"、"上班"、"吃饭"……正确答案不只一个，但 Loss 只惩罚了"不是数据中的那个答案"）。</p>
+    <p>这就是为什么语言模型的 Loss 很难像传统分类任务那样降到很低——语言本身就是概率性的！</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="07-model-assembly.html" class="nav-btn prev">← 上一章：完整模型组装</a>
+  <a href="09-sft-overview.html" class="nav-btn next">下一章：SFT 概览 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 08 章 · 预训练实战</p></div>
+</body>
+</html>

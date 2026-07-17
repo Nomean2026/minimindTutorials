@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>19 - DPO 原理与实现 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; text-align: center; margin: 16px 0; font-size: 1.15rem; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="18-rlhf-overview.html">← 上一章</a>
+  <a href="20-ppo-theory.html">下一章 →</a>
+  <span class="title">第 19 章 · DPO 原理与实现</span>
+</div>
+<div class="container">
+
+<h1>🎯 DPO 原理与实现</h1>
+<p class="subtitle">Direct Preference Optimization——"原来偏好对齐可以不用强化学习！"</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>RLHF 三阶段：SFT → Reward Model → RL（PPO）</li>
+    <li>DPO 跳过了 Reward Model 和 PPO，直接用偏好数据优化</li>
+    <li>DPO 的学习率极小（4e-8），因为偏好对比信号非常强</li>
+  </ul>
+</div>
+
+<h2>💡 DPO 的核心洞察</h2>
+
+<p>PPO 的流程是：训练一个 Reward Model → 用 PPO 优化 Policy。但 DPO 的作者发现了一个<strong>数学上的巧妙关系</strong>：</p>
+
+<div class="formula-box">
+  🎯 最优策略 π* 与隐含奖励 r 之间存在一一对应关系：<br>
+  <span class="math">r(x, y) = β · log(π*(y|x) / π<sub>ref</sub>(y|x)) + β · log Z(x)</span>
+</div>
+
+<p>翻译成大白话：<strong>如果我知道了最优策略 π*，我就能反推出奖励函数 r——根本不需要单独训练一个 Reward Model！</strong></p>
+
+<div class="tip">
+  💡 <strong>直觉</strong>：如果一个回答 y 在最优策略下的概率比在 SFT 模型下的概率高很多（log ratio 很大），那么它一定是一个"好"回答（隐含奖励高）。反之亦然。
+</div>
+
+<h2>📐 DPO Loss 推导</h2>
+
+<p>把上面的关系代入 Bradley-Terry 偏好模型，经过几步代数变换（我们用直觉跳过纯数学），得到 DPO 的最终损失函数：</p>
+
+<div class="formula-box">
+  📐 L<sub>DPO</sub>(π<sub>θ</sub>; π<sub>ref</sub>) = -E<sub>(x, y<sub>w</sub>, y<sub>l</sub>)</sub> [ log σ( β · log(π<sub>θ</sub>(y<sub>w</sub>|x) / π<sub>ref</sub>(y<sub>w</sub>|x)) - β · log(π<sub>θ</sub>(y<sub>l</sub>|x) / π<sub>ref</sub>(y<sub>l</sub>|x)) ) ]
+</div>
+
+<p>其中：</p>
+<ul>
+  <li><span class="math">y<sub>w</sub></span>（winner）= 人类偏好的回答（chosen）</li>
+  <li><span class="math">y<sub>l</sub></span>（loser）= 人类不偏好的回答（rejected）</li>
+  <li><span class="math">π<sub>θ</sub></span> = 我们正在训练的策略模型</li>
+  <li><span class="math">π<sub>ref</sub></span> = 冻结的 SFT 模型（参考模型）</li>
+  <li><span class="math">β</span> = 超参数，控制对参考模型的偏离程度</li>
+  <li><span class="math">σ</span> = sigmoid 函数</li>
+</ul>
+
+<h2>🔍 理解 Loss 的直觉</h2>
+
+<p>把公式拆解成三部分理解：</p>
+
+<div style="display:grid; grid-template-columns: 1fr; gap:12px; margin:16px 0;">
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px; border-left:4px solid var(--success);">
+    <strong>① 对 chosen 回答：</strong>我们希望 π<sub>θ</sub> 对 y<sub>w</sub> 的概率 <strong>></strong> π<sub>ref</sub> 的概率 → log ratio 为正</div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px; border-left:4px solid var(--danger);">
+    <strong>② 对 rejected 回答：</strong>我们希望 π<sub>θ</sub> 对 y<sub>l</sub> 的概率 <strong><</strong> π<sub>ref</sub> 的概率 → log ratio 为负</div>
+  <div style="background:var(--bg-card); border-radius:10px; padding:16px; border-left:4px solid var(--primary);">
+    <strong>③ 整体：</strong>chosen 的 log ratio - rejected 的 log ratio 越大越好 → sigmoid 后接近 1 → -log σ(...) 接近 0</div>
+</div>
+
+<div class="warn">
+  ⚠️ <strong>注意</strong>：DPO 不需要 reward model，不需要 PPO 的 rollout，不需要 critic network——它只需要三样东西：
+  <ol>
+    <li>一个<strong>偏好数据集</strong>（chosen/rejected 对）</li>
+    <li>一个<strong>冻结的 ref 模型</strong></li>
+    <li>一个<strong>正在训练的策略模型</strong></li>
+  </ol>
+</div>
+
+<h2>🧪 MiniMind 中的 DPO 实现</h2>
+
+<p>现在来看 MiniMind 的 <code>train_dpo.py</code> 的核心代码：</p>
+
+<h3>Step 1: 计算每个 token 的 log 概率</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+def logits_to_log_probs(logits, labels):
+    <span class="comment"># logits: [batch, seq, vocab]</span>
+    <span class="comment"># labels: [batch, seq]</span>
+    log_probs = F.log_softmax(logits, dim=2)
+    log_probs_per_token = torch.gather(
+        log_probs, dim=2,
+        index=labels.unsqueeze(2)
+    ).squeeze(-1)
+    <span class="keyword">return</span> log_probs_per_token
+  </div>
+  <div class="explain-side">
+    <p><strong>这个函数做什么？</strong></p>
+    <p>对每个 token，取它在<strong>实际 label 位置</strong>上的 log 概率。</p>
+    <p>输出形状：[batch, seq_len]，每个位置是模型对该位置正确 token 的 log 概率。</p>
+  </div>
+</div>
+
+<h3>Step 2: DPO Loss 的核心</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+def dpo_loss(ref_log_probs, policy_log_probs, mask, beta):
+    <span class="comment"># 对序列维度求和</span>
+    ref_log_probs = (ref_log_probs * mask).sum(dim=1)
+    policy_log_probs = (policy_log_probs * mask).sum(dim=1)
+
+    <span class="comment"># 前一半是 chosen, 后一半是 rejected</span>
+    B = ref_log_probs.shape[0]
+    c_ref = ref_log_probs[:B // 2]
+    r_ref = ref_log_probs[B // 2:]
+    c_pol = policy_log_probs[:B // 2]
+    r_pol = policy_log_probs[B // 2:]
+
+    <span class="comment"># 计算 chosen 和 rejected 的 log ratio</span>
+    pi_logratios = c_pol - r_pol
+    ref_logratios = c_ref - r_ref
+    logits = pi_logratios - ref_logratios
+
+    <span class="comment"># DPO loss = -log σ(β * logits)</span>
+    loss = -F.logsigmoid(beta * logits)
+    <span class="keyword">return</span> loss.mean()
+  </div>
+  <div class="explain-side">
+    <p>这就是 DPO 公式的<strong>直接代码翻译</strong>！</p>
+    <p><span class="highlight">pi_logratios</span>：<span class="math">log π<sub>θ</sub>(y<sub>w</sub>) - log π<sub>θ</sub>(y<sub>l</sub>)</span></p>
+    <p><span class="highlight">ref_logratios</span>：<span class="math">log π<sub>ref</sub>(y<sub>w</sub>) - log π<sub>ref</sub>(y<sub>l</sub>)</span></p>
+    <p><span class="highlight">logits = pi_logratios - ref_logratios</span></p>
+    <p>这正好对应公式里的 <span class="math">β · log(π<sub>θ</sub>/π<sub>ref</sub>)</span> 对于 chosen 和 rejected 的差值。</p>
+  </div>
+</div>
+
+<h3>Step 3: 训练循环</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 一个 batch 包含 chosen 和 rejected 对</span>
+x = torch.cat([x_chosen, x_rejected], dim=0)
+y = torch.cat([y_chosen, y_rejected], dim=0)
+mask = torch.cat([mask_chosen, mask_rejected], dim=0)
+
+<span class="comment"># 冻结的 ref_model 计算参考 log 概率</span>
+<span class="keyword">with</span> torch.no_grad():
+    ref_outputs = ref_model(x)
+    ref_logits = ref_outputs.logits
+ref_log_probs = logits_to_log_probs(ref_logits, y)
+
+<span class="comment"># 策略模型计算当前 log 概率</span>
+outputs = model(x)
+logits = outputs.logits
+policy_log_probs = logits_to_log_probs(logits, y)
+
+<span class="comment"># DPO loss</span>
+dpo_loss_val = dpo_loss(ref_log_probs, policy_log_probs, mask, beta)
+loss = dpo_loss_val + outputs.aux_loss
+loss.backward()
+  </div>
+  <div class="explain-side">
+    <p><strong>训练流程：</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>chosen 和 rejected 拼接在一起，一次 forward 算出所有的 logits</li>
+      <li>ref_model 和 policy_model <strong>各自算各自的 log 概率</strong></li>
+      <li>ref_model 完全冻结（no_grad）</li>
+      <li>DPO loss = 公式计算 + 辅助 loss（MoE）</li>
+    </ol>
+    <p><strong>注意</strong>：这里的 <span class="highlight">mask</span> 来自 DPODataset，控制哪些位置算 loss（和 SFT 一样，只算 assistant 部分）。</p>
+  </div>
+</div>
+
+<h2>📊 数据格式：DPO 的偏好数据</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># dpo.jsonl 中的一条数据</span>
+{
+  <span class="string">"chosen"</span>: [
+    {<span class="string">"role"</span>: <span class="string">"user"</span>,
+     <span class="string">"content"</span>: <span class="string">"1+1="</span>},
+    {<span class="string">"role"</span>: <span class="string">"assistant"</span>,
+     <span class="string">"content"</span>: <span class="string">"2"</span>}
+  ],
+  <span class="string">"rejected"</span>: [
+    {<span class="string">"role"</span>: <span class="string">"user"</span>,
+     <span class="string">"content"</span>: <span class="string">"1+1="</span>},
+    {<span class="string">"role"</span>: <span class="string">"assistant"</span>,
+     <span class="string">"content"</span>: <span class="string">"可能是2吧"</span>}
+  ]
+}
+  </div>
+  <div class="explain-side">
+    <p><strong>注意关键区别：</strong></p>
+    <p>SFT 数据是一个对话 + 一个正确答案。</p>
+    <p>DPO 数据是<strong>同一个 prompt + 两个回答</strong>（chosen 更好，rejected 更差）。</p>
+    <p>标注方式：让标注员看模型的两个回答，选<strong>哪个更好</strong>——比写一个完美回答要容易得多！</p>
+  </div>
+</div>
+
+<h2>⚖️ 超参数 β 的作用</h2>
+
+<p><span class="math">β</span> 是 DPO 中最重要的超参数，控制着<strong>模型偏离 SFT 的程度</strong>：</p>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:16px 0;">
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="color:#dc2626;margin:0 0 8px;">β 太小（如 0.01）</h4>
+    <p style="font-size:0.85rem;">模型可以大幅偏离 SFT，可能<strong>过拟合偏好数据</strong>，丢失通用知识。</p>
+  </div>
+  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
+    <h4 style="color:#15803d;margin:0 0 8px;">β 适中（如 0.1~0.15）</h4>
+    <p style="font-size:0.85rem;">模型适度学习偏好，同时保持语言的自然性。<strong>MiniMind 默认用 0.15</strong>。</p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="color:#dc2626;margin:0 0 8px;">β 太大（如 1.0）</h4>
+    <p style="font-size:0.85rem;">KL 惩罚太强，模型几乎不学习偏好信息，相当于白训。</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px;">
+    <h4 style="color:var(--primary);margin:0 0 8px;">物理意义</h4>
+    <p style="font-size:0.85rem;">β 就像"橡皮筋的弹性系数"——系数越大，模型越不敢偏离 SFT 太远。</p>
+  </div>
+</div>
+
+<h2>📝 DPO vs SFT：核心区别</h2>
+
+<table class="compare-table" style="width:100%;border-collapse:collapse;margin:20px 0;">
+  <thead><tr><th>维度</th><th>SFT</th><th>DPO</th></tr></thead>
+  <tbody>
+    <tr><td>数据格式</td><td>一对一的对话（问答对）</td><td>一对多的偏好对（chosen/rejected）</td></tr>
+    <tr><td>损失函数</td><td>CrossEntropy（直接预测 token）</td><td>偏好对比 loss（提升 chosen 降低 rejected）</td></tr>
+    <tr><td>学习率</td><td>1e-5</td><td>4e-8（小 250 倍）</td></tr>
+    <tr><td>需要 ref 模型</td><td>❌</td><td>✅ 需要冻结的 π<sub>ref</sub></td></tr>
+    <tr><td>训练目的</td><td>学会对话格式</td><td>学会人类偏好</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>DPO 的核心洞察</strong>：最优策略 π* 可以反推出隐含奖励 r，不需要单独训练 Reward Model</li>
+    <li><strong>DPO Loss</strong>：最大化 chosen 和 rejected 之间的 log ratio 差异（通过 sigmoid 和 -log）</li>
+    <li><strong>只需要三样东西</strong>：偏好数据、冻结的 ref 模型、正在训练的策略模型</li>
+    <li><strong>超参数 β</strong>：控制偏离 SFT 的程度，MiniMind 默认 0.15</li>
+    <li><strong>学习率要极小</strong>：4e-8，因为对比信号非常强</li>
+    <li><strong>MiniMind 实现</strong>：在 train_dpo.py 中，dpo_loss() 函数直接对应公式</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：DPO 不需要 Reward Model，那么它如何防止模型"胡言乱语但偏好很高"？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">两个机制防止这个问题：</p>
+    <ol>
+      <li><strong>KL 约束（隐式）</strong>：DPO loss 中天然包含了 π<sub>θ</sub> 和 π<sub>ref</sub> 的比值约束——如果模型输出的概率分布和 SFT 相差太大，log ratio 会很大，但 sigmoid 会饱和，梯度消失。实际上模型偏离 <strong>log space 中大概 β 的尺度</strong>后就不会再偏离了。</li>
+      <li><strong>偏好数据的质量</strong>：chosen 和 rejected 的回答都来自于<strong>同一个 SFT 模型生成的</strong>（通常如此），所以两者在"说人话"这个层面上是差不多的，区别只在于<strong>哪个更符合偏好</strong>。这样模型只需要"微调"回答风格，而不需要重新学说话。</li>
+    </ol>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="18-rlhf-overview.html" class="nav-btn prev">← 上一章：RLHF 总览</a>
+  <a href="20-ppo-theory.html" class="nav-btn next">下一章：PPO 原理与实现 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 19 章 · DPO 原理与实现</p></div>
+</body>
+</html>

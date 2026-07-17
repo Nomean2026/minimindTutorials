@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 - 注意力机制 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .code-side .highlight-code { background: #818cf8;color:#fff;padding:0 4px;border-radius:2px; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; font-size: 1.05rem; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="02-embedding.html">← 上一章</a>
+  <a href="04-rope.html">下一章 →</a>
+  <span class="title">第 03 章 · 注意力机制</span>
+</div>
+<div class="container">
+
+<h1>🔍 注意力机制</h1>
+<p class="subtitle">从 Scaled Dot-Product Attention 到 Multi-Head Attention——"让模型学会关注重点"</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：上章我们学了 Embedding，把 token ID 变成 768 维向量。但每个词单独看是不够的——<strong>"我"和"爱"和"你"合在一起才有意义</strong>。注意力机制就是让模型能"看到"上下文。
+</div>
+
+<h2>💡 核心直觉</h2>
+
+<p>在句子 "我今天晚上想吃火锅" 中，预测"火锅"时，"想吃"比"今天"更重要。注意力机制就是<strong>给不同位置分配不同的权重</strong>，让模型重点关注相关的词。</p>
+
+<h2>📐 Scaled Dot-Product Attention</h2>
+
+<p>这是注意力机制的基础公式：</p>
+
+<div class="formula-box">
+  <span class="math">Attention(Q, K, V) = softmax(Q · K<sup>T</sup> / √d<sub>k</sub>) · V</span>
+</div>
+
+<p>其中：</p>
+<ul>
+  <li><span class="math">Q</span>（Query）= 当前 token 的"问题"——"我要关注什么？"</li>
+  <li><span class="math">K</span>（Key）= 其他 token 的"标签"——"我这里有这些信息"</li>
+  <li><span class="math">V</span>（Value）= 其他 token 的"内容"——"我的信息是这样的"</li>
+  <li><span class="math">√d<sub>k</sub></span> = 缩放因子，防止点积过大导致 softmax 过于极端</li>
+</ul>
+
+<div class="tip">
+  💡 <strong>一个类比——图书馆查书</strong>：
+  <ul>
+    <li><strong>Q</strong> = 你要查的关键词（"大模型训练"）</li>
+    <li><strong>K</strong> = 每本书的标签（"深度学习"、"Python入门"、"Transformer"）</li>
+    <li><strong>Q·K</strong> = 你的关键词和每本书标签的匹配度</li>
+    <li><strong>softmax</strong> = 找出最相关的几本书（权重高的书）</li>
+    <li><strong>V</strong> = 书的内容</li>
+    <li><strong>输出</strong> = 最相关的那几本书内容的加权组合</li>
+  </ul>
+</div>
+
+<h2>🧩 MiniMind 中的 Attention 实现</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> Attention(nn.Module):
+    <span class="keyword">def</span> __init__(self, config):
+        <span class="comment"># Q: 768 → 8×96 = 768</span>
+        self.q_proj = nn.Linear(
+            config.hidden_size,
+            config.num_attention_heads *
+            config.head_dim, bias=False)
+        <span class="comment"># K: 768 → 4×96 = 384 (GQA)</span>
+        self.k_proj = nn.Linear(
+            config.hidden_size,
+            self.num_key_value_heads *
+            config.head_dim, bias=False)
+        <span class="comment"># V: 和 K 同样维度</span>
+        self.v_proj = nn.Linear(
+            config.hidden_size,
+            self.num_key_value_heads *
+            config.head_dim, bias=False)
+        <span class="comment"># O: 8×96 = 768 → 768</span>
+        self.o_proj = nn.Linear(
+            config.num_attention_heads *
+            config.head_dim,
+            config.hidden_size, bias=False)
+  </div>
+  <div class="explain-side">
+    <p><strong>四个投影矩阵（全 Linear，无 bias）：</strong></p>
+    <p><span class="highlight">Q_proj</span>：把 768 维映射到 8×96=768 维</p>
+    <p><span class="highlight">K_proj</span>：把 768 维映射到 4×96=384 维（<strong>GQA</strong>：只有一半头！）</p>
+    <p><span class="highlight">V_proj</span>：和 K 一样 384 维</p>
+    <p><span class="highlight">O_proj</span>：把 8 个头的输出拼回 768 维</p>
+  </div>
+</div>
+
+<h3>forward 函数——注意力计算</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> forward(self, x, position_embeddings,
+              past_key_value=None, use_cache=False,
+              attention_mask=None):
+    bsz, seq_len, _ = x.shape
+
+    xq, xk, xv = self.q_proj(x), \
+                 self.k_proj(x), self.v_proj(x)
+
+    <span class="comment"># 重塑为多头格式</span>
+    xq = xq.view(bsz, seq_len, 8, 96)
+    xk = xk.view(bsz, seq_len, 4, 96)
+    xv = xv.view(bsz, seq_len, 4, 96)
+
+    <span class="comment"># QK Norm（Q 和 K 归一化）</span>
+    xq, xk = self.q_norm(xq), self.k_norm(xk)
+
+    <span class="comment"># RoPE 位置编码（下章讲）</span>
+    xq, xk = apply_rotary_pos_emb(
+        xq, xk, cos, sin)
+
+    <span class="comment"># KV Cache（第24章讲）</span>
+    <span class="keyword">if</span> past_key_value <span class="keyword">is not None</span>:
+        xk = torch.cat(
+            [past_key_value[0], xk], dim=1)
+        xv = torch.cat(
+            [past_key_value[1], xv], dim=1)
+  </div>
+  <div class="explain-side">
+    <p><strong>注意力计算的准备阶段：</strong></p>
+    <p><span class="highlight">view</span>：把 Q 拆成 8 个头（每个头 96 维），K/V 拆成 4 个头。</p>
+    <p><span class="highlight">QK Norm</span>：对 Q 和 K 做 RMSNorm——这是 Llama 的改进，训练更稳定。</p>
+    <p>接下来要做点积注意力了！</p>
+  </div>
+</div>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># GQA：把 K/V 从 4 头扩展到 8 头</span>
+    xk = repeat_kv(xk, self.n_rep)
+    xv = repeat_kv(xv, self.n_rep)
+
+    <span class="comment"># 转置为 [batch, heads, seq, dim]</span>
+    xq = xq.transpose(1, 2)
+    xk = xk.transpose(1, 2)
+    xv = xv.transpose(1, 2)
+
+    <span class="comment"># Flash Attention 或标准注意力</span>
+    <span class="keyword">if</span> self.flash:
+        output = F.scaled_dot_product_attention(
+            xq, xk, xv, is_causal=True)
+    <span class="keyword">else</span>:
+        scores = (xq @ xk.transpose(-2, -1)) \
+                 / math.sqrt(self.head_dim)
+        <span class="comment"># 因果掩码（只能看前面）</span>
+        <span class="keyword">if</span> self.is_causal:
+            mask = torch.full(
+                (seq_len, seq_len), float("-inf")
+            ).triu(1)
+            scores += mask
+
+        output = F.softmax(scores.float(),
+                   dim=-1) @ xv
+
+    <span class="comment"># 合并多头</span>
+    output = output.transpose(1, 2) \
+             .reshape(bsz, seq_len, -1)
+    output = self.o_proj(output)
+  </div>
+  <div class="explain-side">
+    <p><strong>核心计算：</strong></p>
+    <p><span class="highlight">repeat_kv</span>：GQA 的精髓——K/V 只有 4 个头，但 Q 有 8 个。把每个 K/V 头复制一份给对应的 Q 头。</p>
+    <p><span class="highlight">scores</span>：每个 Q 和所有 K 做点积，除以 √96 防止数值过大。</p>
+    <p><span class="highlight">causal mask</span>：上三角全是 -inf，确保 token 只能看到自己和前面的 token，不能"偷看"后面的。</p>
+    <p><span class="highlight">softmax</span>：把分数变成权重（和为 1）。</p>
+    <p><span class="highlight">@ V</span>：加权求和，得到每个 token 的"上下文感知"表示。</p>
+  </div>
+</div>
+
+<h2>🔢 GQA（Grouped Query Attention）</h2>
+
+<p>MiniMind 使用了 GQA——8 个 Q 头，但只有 4 个 KV 头。每 2 个 Q 头共享 1 个 KV 头：</p>
+
+<div style="background:var(--bg-card);border-radius:12px;padding:20px;margin:16px 0;text-align:center;font-size:0.9rem;">
+  Q 头：[Q₁ Q₂]   [Q₃ Q₄]   [Q₅ Q₆]   [Q₇ Q₈]<br>
+  &emsp;&emsp;↘&emsp;↙ &emsp;&emsp;↘&emsp;↙ &emsp;&emsp;↘&emsp;↙ &emsp;&emsp;↘&emsp;↙<br>
+  KV 头：[K₁V₁]    [K₂V₂]    [K₃V₃]    [K₄V₄]
+</div>
+
+<div class="tip">
+  💡 <strong>为什么这么做？</strong> 节省显存！K 和 V 需要缓存（KV Cache），如果只有 4 个头，缓存大小就减半。而且 GQA 在 8 头的情况下效果和全 8 头几乎一样——多出来的 4 个 Q 头足够"问不同的问题"了。
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>Scaled Dot-Product Attention</strong>：softmax(QK<sup>T</sup>/√d)V，核心机制</li>
+    <li><strong>Q/K/V</strong>：Query（问问题）、Key（贴标签）、Value（给内容）</li>
+    <li><strong>Causal Mask</strong>：每个 token 只能看前面的，不能看后面的</li>
+    <li><strong>GQA</strong>：8 个 Q 头但只有 4 个 KV 头，节省显存</li>
+    <li><strong>四个投影矩阵</strong>：Q/K/V/O，全是 Linear 层</li>
+    <li><strong>代码位置</strong>：<code>model_minimind.py</code> 中的 <code>Attention</code> 类</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：为什么 Self-Attention 的复杂度是 O(n²d)？如果序列长度翻倍，计算量和显存会变成多少倍？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">Attention 的核心是 Q @ K<sup>T</sup>（形状 [n, d] × [d, n] = [n, n]），这一步的计算量是 O(n²d)。</p>
+    <p>如果序列长度 n 翻倍（比如 1000→2000）：</p>
+    <ol>
+      <li><strong>计算量</strong>：2² = 4 倍</li>
+      <li><strong>显存</strong>（存储 attention scores）：2² = 4 倍</li>
+    </ol>
+    <p>这就是为什么大模型处理长文本很"贵"——序列长度翻倍，代价是平方增长！</p>
+    <p>这也是 Flash Attention 和 KV Cache 之所以重要的原因——它们都在解决这个 O(n²) 瓶颈。</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="02-embedding.html" class="nav-btn prev">← 上一章：词嵌入</a>
+  <a href="04-rope.html" class="nav-btn next">下一章：RoPE 位置编码 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 03 章 · 注意力机制</p></div>
+</body>
+</html>

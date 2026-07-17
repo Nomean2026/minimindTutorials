@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>22 - LoRA 原理与实现 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; font-size: 1.1rem; text-align: center; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+
+  .matrix-vis { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
+  .matrix-vis .mat { display: inline-grid; gap: 2px; }
+  .matrix-vis .mat .cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 4px; font-weight: 700; }
+  .matrix-vis .mat .cell.dense { background: var(--primary); color: #fff; }
+  .matrix-vis .mat .cell.lora-a { background: var(--success); color: #fff; }
+  .matrix-vis .mat .cell.lora-b { background: var(--accent); color: #fff; }
+  .matrix-vis .mat .cell.zero { background: #e2e8f0; color: #94a3b8; }
+  .matrix-vis .arrow { font-size: 1.5rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="21-grpo-theory.html">← 上一章</a>
+  <a href="23-distillation.html">下一章 →</a>
+  <span class="title">第 22 章 · LoRA 原理与实现</span>
+</div>
+<div class="container">
+
+<h1>🎛️ LoRA 微调</h1>
+<p class="subtitle">Low-Rank Adaptation——"用一张小卡片，微调整个大模型"</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>全量微调（Full SFT）更新<strong>所有</strong>参数，显存占用巨大</li>
+    <li>RLHF 篇的 DPO/PPO/GRPO 也都是全量微调</li>
+    <li>但大多数时候，我们只是想要模型<strong>学会一个新技能</strong>，而不是重新学习语言</li>
+  </ul>
+</div>
+
+<h2>💡 核心问题：全量微调真的太"重"了</h2>
+
+<p>假设我们要让一个 7B 参数的模型学会<strong>做数学题</strong>。全量微调（Full Fine-Tuning）的问题是：</p>
+
+<ul>
+  <li><strong>显存爆炸</strong>：需要存储所有参数的梯度 + 优化器状态，一个 7B 模型用 AdamW 训练需要约 60GB 显存</li>
+  <li><strong>全盘重学</strong>：每次微调都更新全部参数，而新任务只需要修改很小一部分知识</li>
+  <li><strong>灾难性遗忘</strong>：学新任务的过程中，模型可能忘记之前学到的通用知识</li>
+</ul>
+
+<h2>🔬 LoRA 的核心思想</h2>
+
+<div class="formula-box">
+  🎯 <strong>LoRA 假设</strong>：模型参数的更新量 <span class="math">ΔW</span> 是<strong>低秩</strong>的，即<br>
+  <span class="math">rank(ΔW) &lt;&lt; min(d, k)</span>&emsp;（d 和 k 是原始权重矩阵的维度）<br><br>
+  <strong>所以</strong>：<span class="math">ΔW = B · A</span>&emsp;其中 <span class="math">B ∈ ℝ<sup>d×r</sup></span>, <span class="math">A ∈ ℝ<sup>r×k</sup></span>, <span class="math">r &lt;&lt; d, k</span>
+</div>
+
+<p>翻译成人话：</p>
+
+<div class="matrix-vis">
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    <div class="mat" style="grid-template-columns: repeat(5, 40px);">
+      <div class="cell dense" style="grid-column:1">W</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+      <div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+      <div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">原始权重 W (768×768)</span>
+  </div>
+  <span class="arrow">=</span>
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    <div class="mat" style="grid-template-columns: repeat(5, 40px);">
+      <div class="cell dense" style="grid-column:1">W</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+      <div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+      <div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div><div class="cell dense">·</div>
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">预训练权重（冻结）</span>
+  </div>
+  <span class="arrow">+</span>
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    <div class="mat" style="grid-template-columns: repeat(5, 40px);">
+      <div class="cell lora-b" style="grid-column:1">B</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div>
+      <div class="cell lora-b">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div>
+      <div class="cell lora-b">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div>
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">B (768×r)</span>
+  </div>
+  <span class="arrow">×</span>
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    <div class="mat" style="grid-template-columns: repeat(5, 40px);">
+      <div class="cell lora-a" style="grid-column:1">A</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div><div class="cell zero">·</div>
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">A (r×768)</span>
+  </div>
+</div>
+
+<div class="tip">
+  💡 <strong>一个比喻</strong>：
+  预训练模型是一个<strong>博学的教授</strong>（W），已经掌握了各种知识。
+  LoRA 就像给教授一张<strong>小抄</strong>（B·A），教授还是那个教授，只是他看问题时会顺便瞄一眼小抄。
+  训练小抄比重新培训教授便宜得多！
+</div>
+
+<h2>🧮 参数量的"魔法"</h2>
+
+<p>以 MiniMind 的 <span class="math">d = 768</span> 为例，对比全量微调和 LoRA 的参数量：</p>
+
+<table class="compare-table">
+  <thead><tr><th>方法</th><th>一个 Linear 层</th><th>8 层 Transformer 的 QKV</th><th>节省比例</th></tr></thead>
+  <tbody>
+    <tr><td><strong>全量微调</strong></td><td>768 × 768 = 589,824</td><td>8 × 3 × 589,824 = 14,155,776</td><td>—</td></tr>
+    <tr><td><strong>LoRA (r=16)</strong></td><td>768×16 + 16×768 = 24,576</td><td>8 × 3 × 24,576 = 589,824</td><td>↓ 96%</td></tr>
+    <tr><td><strong>LoRA (r=8)</strong></td><td>768×8 + 8×768 = 12,288</td><td>8 × 3 × 12,288 = 294,912</td><td>↓ 98%</td></tr>
+    <tr><td><strong>LoRA (r=4)</strong></td><td>768×4 + 4×768 = 6,144</td><td>8 × 3 × 6,144 = 147,456</td><td>↓ 99%</td></tr>
+  </tbody>
+</table>
+
+<p>用 r=8 的 LoRA，可训练参数只有全量微调的 <strong>2%</strong>！这意味着：</p>
+<ul>
+  <li>显存占用从 <strong>60GB</strong>（7B 全量）降到 <strong>~16GB</strong>（LoRA）</li>
+  <li>单张消费级显卡（RTX 3090/4090）就能跑</li>
+  <li>训练时间缩短 10 倍以上</li>
+</ul>
+
+<h2>🧩 MiniMind 的 LoRA 实现</h2>
+
+<h3>1. LoRA 模块定义</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> LoRA(nn.Module):
+    <span class="keyword">def</span> __init__(self, in_features,
+                 out_features, rank):
+        <span class="keyword">super</span>().__init__()
+        self.rank = rank
+
+        <span class="comment"># A: d→r（降维）</span>
+        self.A = nn.Linear(
+            in_features, rank, bias=False
+        )
+        <span class="comment"># B: r→d（升维）</span>
+        self.B = nn.Linear(
+            rank, out_features, bias=False
+        )
+
+        <span class="comment"># A 高斯初始化</span>
+        self.A.weight.data.normal_(
+            mean=0.0, std=0.02)
+        <span class="comment"># B 全零初始化（初始无影响）</span>
+        self.B.weight.data.zero_()
+
+    <span class="keyword">def</span> forward(self, x):
+        <span class="keyword">return</span> self.B(self.A(x))
+  </div>
+  <div class="explain-side">
+    <p><strong>两个关键设计：</strong></p>
+    <p><strong>1. B 全零初始化</strong></p>
+    <p>训练开始时，B·A = 0，所以 <span class="highlight">W + B·A = W</span>，模型输出不变。</p>
+    <p>这意味着 LoRA 初始时<strong>不会影响模型性能</strong>，训练过程中的梯度会慢慢地让 B·A 学会需要更新的方向。</p>
+    <p><strong>2. A 高斯初始化</strong></p>
+    <p>如果 A 也是全零，梯度永远为零，模型永远不会学习。</p>
+  </div>
+</div>
+
+<h3>2. apply_lora：把 LoRA "贴"到模型上</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> apply_lora(model, rank=16):
+    <span class="keyword">for</span> name, module <span class="keyword">in</span> model.named_modules():
+        <span class="keyword">if</span> isinstance(module, nn.Linear) \
+           <span class="keyword">and</span> module.in_features == module.out_features:
+
+            lora = LoRA(module.in_features,
+                        module.out_features,
+                        rank=rank)
+
+            <span class="comment"># 把 lora 挂载在 module 上</span>
+            setattr(module, <span class="string">"lora"</span>, lora)
+            original_forward = module.forward
+
+            <span class="comment"># Hook forward：输出 = 原始 + LoRA</span>
+            <span class="keyword">def</span> forward_with_lora(
+                x, layer1=original_forward,
+                layer2=lora):
+                <span class="keyword">return</span> layer1(x) + layer2(x)
+
+            module.forward = forward_with_lora
+  </div>
+  <div class="explain-side">
+    <p><strong>这段代码做了什么？</strong></p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>遍历模型所有子模块</li>
+      <li>找到 <strong>方阵 Linear 层</strong>（in_features == out_features）</li>
+      <li>为每个方阵层创建一个 LoRA 模块</li>
+      <li>修改 forward 函数：<span class="highlight">h = Wx + BAx</span></li>
+    </ol>
+    <p><strong>为什么只对方阵层？</strong></p>
+    <p>因为 Attention 的 Q/K/V/O（还有 FFN 的 gate/down/up）都是方阵。这也意味着 LM Head（vocab×hidden）不会被 LoRA 修改。</p>
+  </div>
+</div>
+
+<h3>3. 保存 & 加载 LoRA 权重</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> save_lora(model, path):
+    raw_model = getattr(
+        model, <span class="string">'_orig_mod'</span>, model
+    )
+    state_dict = {}
+    <span class="keyword">for</span> name, module <span class="keyword">in</span> \
+        raw_model.named_modules():
+        <span class="keyword">if</span> hasattr(module, <span class="string">'lora'</span>):
+            lora_state = {
+                f'{name}.lora.{k}': v.cpu().half()
+                <span class="keyword">for</span> k, v <span class="keyword">in</span>
+                module.lora.state_dict().items()
+            }
+            state_dict.update(lora_state)
+    torch.save(state_dict, path)
+
+
+<span class="keyword">def</span> load_lora(model, path):
+    state_dict = torch.load(
+        path, map_location=model.device
+    )
+    <span class="keyword">for</span> name, module <span class="keyword">in</span> \
+        model.named_modules():
+        <span class="keyword">if</span> hasattr(module, <span class="keyword">'lora'</span>):
+            lora_state = {
+                k.replace(f'{name}.lora.', ''): v
+                <span class="keyword">for</span> k, v <span class="keyword">in</span>
+                state_dict.items()
+                <span class="keyword">if</span> f'{name}.lora.' <span class="keyword">in</span> k
+            }
+            module.lora.load_state_dict(lora_state)
+  </div>
+  <div class="explain-side">
+    <p><strong>保存的是 LoRA 权重</strong>，不是整个模型。</p>
+    <p>一个典型的 LoRA checkpoint 只有几 MB（全量微调的几十分之一）！</p>
+    <p><strong>加载时</strong>也是只加载 LoRA 部分——原始权重已经在模型中了。</p>
+    <p>这就是 LoRA 的便利性：你可以为不同任务训练不同的<strong>LoRA 卡片</strong>，然后在推理时切换加载。</p>
+  </div>
+</div>
+
+<h3>4. merge_lora：合并回原始权重</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> merge_lora(model, lora_path, save_path):
+    <span class="comment"># 加载 LoRA 权重</span>
+    load_lora(model, lora_path)
+
+    raw_model = getattr(
+        model, <span class="string">'_orig_mod'</span>, model
+    )
+
+    <span class="comment"># 提取原始权重</span>
+    state_dict = {
+        k: v.cpu().half()
+        <span class="keyword">for</span> k, v <span class="keyword">in</span>
+        raw_model.state_dict().items()
+        <span class="keyword">if</span> '.lora.' <span class="keyword">not in</span> k
+    }
+
+    <span class="comment"># 把 LoRA 合并到原始权重</span>
+    <span class="keyword">for</span> name, module <span class="keyword">in</span> \
+        raw_model.named_modules():
+        <span class="keyword">if</span> isinstance(module, nn.Linear) \
+           <span class="keyword">and</span> '.lora.' <span class="keyword">not in</span> name:
+            state_dict[f'{name}.weight'] = \
+                module.weight.data.clone().cpu().half()
+            <span class="keyword">if</span> hasattr(module, <span class="string">'lora'</span>):
+                state_dict[f'{name}.weight'] += \
+                    (module.lora.B.weight.data @
+                     module.lora.A.weight.data
+                    ).cpu().half()
+    torch.save(state_dict, save_path)
+  </div>
+  <div class="explain-side">
+    <p><strong>merge 的作用：</strong></p>
+    <p>将训练好的 <span class="math">B·A</span> 直接加到原始权重 <span class="math">W</span> 上：</p>
+    <p><span class="math">W' = W + B·A</span></p>
+    <p>合并后的模型<strong>不依赖 LoRA 模块</strong>，推理速度和原始模型一样快。</p>
+    <p><strong>什么时候需要 merge？</strong></p>
+    <ul style="margin:0;font-size:0.85rem;">
+      <li>部署到生产环境（减少额外开销）</li>
+      <li>作为基座做下一步微调</li>
+      <li>需要极致推理速度时</li>
+    </ul>
+  </div>
+</div>
+
+<h2>🎯 LoRA 与全量微调的对比</h2>
+
+<table class="compare-table">
+  <thead><tr><th>维度</th><th>Full SFT</th><th>LoRA</th></tr></thead>
+  <tbody>
+    <tr><td><strong>可训练参数量</strong></td><td>全部（100%）</td><td>约 0.1%~2%</td></tr>
+    <tr><td><strong>需要存储梯度</strong></td><td>所有参数</td><td>仅 LoRA 参数</td></tr>
+    <tr><td><strong>优化器状态</strong></td><td>全量（Adam: 2x 参数）</td><td>仅 LoRA 参数</td></tr>
+    <tr><td><strong>显存占用（7B）</strong></td><td>~60GB</td><td>~16GB</td></tr>
+    <tr><td><strong>训练速度</strong></td><td>慢</td><td>快 2-4 倍</td></tr>
+    <tr><td><strong>效果</strong></td><td>理论上限最高</td><td>近似全量（r 足够时）</td></tr>
+    <tr><td><strong>多任务能力</strong></td><td>每个任务一套完整权重</td><td>基座 + 多张 LoRA 卡片</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 LoRA 在 SFT 和 RLHF 中的应用</h2>
+
+<p>在实际项目中，LoRA 最常见的用法是作为 SFT 和 DPO 的<strong>轻量替代方案</strong>：</p>
+
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin:16px 0;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>🎯 LoRA + SFT</h4>
+    <p style="font-size:0.85rem;">用 SFT 数据训练 LoRA，<br>只需 16GB 显存</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>🎯 LoRA + DPO</h4>
+    <p style="font-size:0.85rem;">在 LoRA 基础上做 DPO，<br>2 个 LoRA 模型即可</p>
+  </div>
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+    <h4>🎯 LoRA + PPO</h4>
+    <p style="font-size:0.85rem;">Actor + Critic 都用 LoRA，<br>4 个模型也能跑得动</p>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠️ <strong>注意</strong>：MiniMind 的 LoRA 实现是"手动挡"——它通过 Hook forward 手动修改前向传播。
+  在实际生产中更推荐使用 <code>peft</code>（HuggingFace 的 Parameter-Efficient Fine-Tuning 库），
+  它提供了更完善的 LoRA 实现，包括 <code>LoraConfig</code>、<code>get_peft_model</code> 等。
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>LoRA 的核心假设</strong>：模型参数的更新量 ΔW 是低秩的</li>
+    <li><strong>公式</strong>：W + ΔW = W + B·A，B 是 d×r，A 是 r×k，r 通常取 8~64</li>
+    <li><strong>初始化</strong>：A 高斯初始化，B 全零初始化——训练开始时等效于原始模型</li>
+    <li><strong>参数量减少 98%+</strong>：7B 模型训练只需要 ~16GB 显存</li>
+    <li><strong>MiniMind 实现</strong>：LoRA 类 + apply_lora + save/load/merge</li>
+    <li><strong>apply_lora</strong>：只对方阵 Linear 层应用 LoRA，通过 Hook forward 修改计算图</li>
+    <li><strong>merge 操作</strong>：训练完后可以将 B·A 合并回 W，推理零开销</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：为什么 apply_lora 只选择 <code>in_features == out_features</code> 的 Linear 层？如果
+  我们也对非方阵层（比如 embedding 层）应用 LoRA，会有什么问题？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">理论上可以对任何 Linear 层应用 LoRA，包括非方阵层。但实践中通常只在方阵层（QKVO、FFN 的 gate/down/up）做，原因有：</p>
+    <ol>
+      <li><strong>Embedding 层嵌入维度太大</strong>（vocab_size × hidden_size），LoRA 的参数量会很大，失去效率优势</li>
+      <li><strong>LM Head 通常 tied embedding</strong>（权重共享），改 embedding 会同时影响输入输出，容易出问题</li>
+      <li><strong>经验表明</strong>：Attention 的 Q/K/V 和 FFN 的 down-projection 是 LoRA 最有效的位置。这些层存储了模型的核心"知识"，更新它们就能很好地适配下游任务</li>
+    </ol>
+    <p>实际上，MiniMind 代码中因为 modules 遍历时 filter 条件是 <code>module.in_features == module.out_features</code>，
+    所以只选中了方阵层——这无意中符合了 LoRA 的最佳实践！</p>
+  </details>
+</div>
+
+<h2>🔗 LoRA vs 其他微调方法</h2>
+
+<table class="compare-table">
+  <thead><tr><th>方法</th><th>思路</th><th>可训练参数</th><th>显存</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Full Fine-Tuning</strong></td><td>更新全部参数</td><td>100%</td><td>极高</td></tr>
+    <tr><td><strong>LoRA</strong></td><td>低秩矩阵增量</td><td>0.1%~2%</td><td>低</td></tr>
+    <tr><td><strong>Adapter</strong></td><td>在层之间插入小网络</td><td>1%~5%</td><td>低（但会减慢推理）</td></tr>
+    <tr><td><strong>Prefix Tuning</strong></td><td>在输入前拼接可学习向量</td><td>极少</td><td>极低</td></tr>
+    <tr><td><strong>Prompt Tuning</strong></td><td>类似 Prefix，但更简单</td><td>极少</td><td>极低</td></tr>
+  </tbody>
+</table>
+
+<div class="nav-buttons">
+  <a href="21-grpo-theory.html" class="nav-btn prev">← 上一章：GRPO</a>
+  <a href="23-distillation.html" class="nav-btn next">下一章：知识蒸馏 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 22 章 · LoRA 原理与实现</p></div>
+</body>
+</html>

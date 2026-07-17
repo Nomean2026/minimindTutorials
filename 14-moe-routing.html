@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>14 - MoE 路由网络 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+  .flow-step { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; }
+  .flow-step .num { background: var(--primary); color: #fff; border-radius: 50%; width: 28px; min-width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+  .flow-step .content { flex: 1; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="13-moe-intro.html">← 上一章</a>
+  <a href="15-moe-load-balancing.html">下一章 →</a>
+  <span class="title">第 14 章 · 路由网络详解</span>
+</div>
+<div class="container">
+
+<h1>🚦 路由网络详解</h1>
+<p class="subtitle">Gating Network、Top-K 选择——MoE 的"交通指挥"系统</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>MoE = 多个专家（每个是一个 FeedForward）+ 一个路由（Router）</li>
+    <li>参数量大但计算量小（只激活部分专家）</li>
+    <li>MiniMind 通过 <span class="highlight">config.use_moe</span> 一个标志位切换</li>
+  </ul>
+</div>
+
+<h2>🧭 路由网络 = MoE 的大脑</h2>
+
+<p>路由网络（Gating Network / Router）是 MoE 中<strong>最核心</strong>也<strong>最有趣</strong>的部分。它的任务很简单：<strong>决定每个 token 应该交给哪些专家处理</strong>。</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># MOEFeedForward.forward()</span>
+    <br>
+    <span class="comment"># Step 1: 展平</span>
+    <br>
+    x_flat = x.view(-1, hidden_dim)
+    <br><br>
+    <span class="comment"># Step 2: Router 打分</span>
+    <br>
+    scores = F.softmax(
+    <br>
+    &nbsp;&nbsp;self.gate(x_flat), dim=-1
+    <br>
+    )
+    <br><br>
+    <span class="comment"># Step 3: Top-K 选择</span>
+    <br>
+    topk_weight, topk_idx = torch.topk(
+    <br>
+    &nbsp;&nbsp;scores, k=num_experts_per_tok,
+    <br>
+    &nbsp;&nbsp;dim=-1, sorted=False
+    <br>
+    )
+    <br><br>
+    <span class="comment"># Step 4: 归一化权重</span>
+    <br>
+    topk_weight /= topk_weight.sum(
+    <br>
+    &nbsp;&nbsp;dim=-1, keepdim=True
+    <br>
+    )
+  </div>
+  <div class="explain-side">
+    <p><strong>四个步骤拆解：</strong></p>
+    <p><strong>1️⃣ 展平</strong>：将 [batch, seq, hidden] 变成 [batch*seq, hidden]——每个 token 独立选择专家。</p>
+    <p><strong>2️⃣ Router 打分</strong>：<span class="highlight">self.gate</span> 是一个 Linear(hidden_size, num_experts)，输出每个 token 对每个专家的"偏好分数"，然后用 softmax 转成概率。</p>
+    <p><strong>3️⃣ Top-K 选择</strong>：选得分最高的 K 个专家（MiniMind 默认 K=2）。</p>
+    <p><strong>4️⃣ 权重归一化</strong>：对选中的 K 个专家的权重重新归一化，让它们加起来等于 1。</p>
+  </div>
+</div>
+
+<h2>🔍 逐行代码解析</h2>
+
+<p>让我们仔细看<strong>网络的"选择"</strong>具体是如何实现的：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># self.gate 的定义</span>
+    <br>
+    self.gate = nn.Linear(
+    <br>
+    &nbsp;&nbsp;config.hidden_size,  <span class="comment"># 输入：token 的隐藏表示</span>
+    <br>
+    &nbsp;&nbsp;config.num_experts,   <span class="comment"># 输出：对每个专家的分数</span>
+    <br>
+    &nbsp;&nbsp;bias=False
+    <br>
+    )
+    <br><br>
+    <span class="comment"># 假设：</span>
+    <br>
+    <span class="comment"># hidden_size = 768</span>
+    <br>
+    <span class="comment"># num_experts = 4</span>
+    <br>
+    <span class="comment"># gate 权重形状：[768, 4]</span>
+    <br><br>
+    <span class="comment"># 对 token "天气" 的推理</span>
+    <br>
+    <span class="comment"># gate("天气") → [2.1, 0.5, -0.3, 1.8]</span>
+    <br>
+    <span class="comment"># softmax → [0.50, 0.21, 0.09, 0.20]</span>
+    <br>
+    <span class="comment"># top-2 → 专家0(0.50) + 专家3(0.20)</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>这个网络选择，其实就是一个简单的线性层！</strong></p>
+    <p>视频里说："门控网络原始输出的是原始的 logits，用来做 softmax 计算专家选择概率"。</p>
+    <p>简单说：</p>
+    <ul style="font-size:0.88rem;">
+      <li>输入：token 的 768 维向量</li>
+      <li>输出：4 个分数（对应 4 个专家）</li>
+      <li>选择：分数最高的 2 个专家</li>
+    </ul>
+    <p><strong>一个比喻</strong>：Router 就像一个<strong>分诊台护士</strong>——她听你说症状（token 的表示），然后判断该去哪个科室（专家）。</p>
+  </div>
+</div>
+
+<h2>🔄 专家前向传播</h2>
+
+<p>选好专家后，怎么把 token 送到对应的专家那里？</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 对每个专家，找到分配给它的 token</span>
+    <br>
+    y = torch.zeros_like(x_flat)
+    <br>
+    <span class="keyword">for</span> i, expert <span class="keyword">in</span> enumerate(self.experts):
+    <br>
+    &nbsp;&nbsp;<span class="comment"># 哪些 token 选了这个专家？</span>
+    <br>
+    &nbsp;&nbsp;mask = (topk_idx == i)
+    <br>
+    &nbsp;&nbsp;<span class="keyword">if</span> mask.any():
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;token_idx = mask.any(dim=-1).nonzero().flatten()
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;weight = topk_weight[mask].view(-1, 1)
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># 专家处理 token，加权累加</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;y.index_add_(0, token_idx,
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(expert(x_flat[token_idx]) * weight)
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;)
+  </div>
+  <div class="explain-side">
+    <p>这里用了一个 <strong>for 循环遍历所有专家</strong>：</p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>对每个专家 i，查哪些 token 选中了它</li>
+      <li>如果有，把这些 token 发给专家处理</li>
+      <li>乘以对应的权重</li>
+      <li>累加到输出 y 中</li>
+    </ol>
+    <p><strong>注意</strong>：一个 token 如果选了 2 个专家，它的输出就是两个专家输出的加权和。</p>
+  </div>
+</div>
+
+<h2>🧪 具体例子：4 个专家，Top-2</h2>
+
+<p>假设一个 batch 只有 3 个 token，4 个专家，每个 token 选 Top-2：</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:0.9rem;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>Token</th><th>Router 输出 (softmax 后)</th><th>Top-2 专家</th><th>权重</th></tr></thead>
+  <tbody>
+    <tr><td>"天气"</td><td>[0.50, 0.21, 0.09, 0.20]</td><td>专家 0, 专家 3</td><td>[0.71, 0.29]</td></tr>
+    <tr><td>"数学"</td><td>[0.10, 0.70, 0.15, 0.05]</td><td>专家 1, 专家 2</td><td>[0.74, 0.26]</td></tr>
+    <tr><td>"代码"</td><td>[0.05, 0.15, 0.75, 0.05]</td><td>专家 2, 专家 1</td><td>[0.79, 0.21]</td></tr>
+  </tbody>
+</table>
+
+<p>可以看到：</p>
+<ul>
+  <li><strong>专家 0</strong>：处理了"天气"（权重 0.71）</li>
+  <li><strong>专家 1</strong>：处理了"数学"（0.74）和"代码"（0.21）</li>
+  <li><strong>专家 2</strong>：处理了"数学"（0.26）和"代码"（0.79）→ 代码的主要处理者！</li>
+  <li><strong>专家 3</strong>：处理了"天气"（0.29）</li>
+</ul>
+
+<p>这就是<strong>专家分化</strong>的雏形——虽然训练初期可能很混乱，但训练充分后，专家 2 可能会变成"代码专家"。</p>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>Router 就是一个简单的线性层</strong>：hidden_size → num_experts</li>
+    <li><strong>网络选择 = Top-K</strong>：选概率最高的 K 个专家</li>
+    <li><strong>专家输出加权求和</strong>：每个 token 的最终输出是选中的专家输出的加权和</li>
+    <li><strong>Router 的参数是可学习的</strong>：它通过反向传播学习如何分配 token</li>
+    <li><strong>专家分化是训练的结果</strong>：初期混乱，后期逐渐分化</li>
+  </ol>
+</div>
+
+<div class="nav-buttons">
+  <a href="13-moe-intro.html" class="nav-btn prev">← 上一章：MoE 概念</a>
+  <a href="15-moe-load-balancing.html" class="nav-btn next">下一章：负载均衡 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 14 章 · 路由网络</p></div>
+</body>
+</html>

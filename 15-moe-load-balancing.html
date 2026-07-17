@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 - MoE 负载均衡 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+
+  .dead-cycle { display: flex; align-items: center; justify-content: center; gap: 24px; margin: 20px auto; padding: 20px; max-width: 500px; flex-wrap: wrap; }
+  .dead-cycle .node { width: 80px; height: 80px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; }
+  .dead-cycle .arrow { font-size: 1.5rem; color: var(--danger); }
+  .dead-cycle .start { background: #fef2f2; border: 3px solid var(--danger); color: var(--danger); }
+  .dead-cycle .mid { background: #fffbeb; border: 3px solid var(--warning); color: #92400e; }
+  .dead-cycle .end { background: #fef2f2; border: 3px solid var(--danger); color: var(--danger); }
+
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; text-align: center; margin: 16px 0; font-size: 1.2rem; }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="14-moe-routing.html">← 上一章</a>
+  <a href="16-moe-z-loss.html">下一章 →</a>
+  <span class="title">第 15 章 · MoE 负载均衡</span>
+</div>
+<div class="container">
+
+<h1>⚖️ 负载均衡</h1>
+<p class="subtitle">专家坍塌问题 + Load Balancing Loss 公式推导与代码实现</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>Router 是一个线性层，为每个 token 输出对 4 个专家的"偏好分数"</li>
+    <li>每个 token 选 Top-2 专家，输出是选中的专家输出的加权和</li>
+    <li>Router 的参数是<strong>可学习的</strong>——这意味着它可能"学偏"</li>
+  </ul>
+</div>
+
+<h2>⚠️ 问题：专家坍塌（Router Collapse）</h2>
+
+<p>如果你直接训练一个 MoE，很可能会遇到这个问题：</p>
+
+<div class="dead-cycle">
+  <div class="node start">
+    <span>🎲</span>
+    <span>初始化</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node mid">
+    <span>😎</span>
+    <span>专家 A 稍强</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node mid">
+    <span>📊</span>
+    <span>Router 偏好 A</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node mid">
+    <span>📈</span>
+    <span>更多 token 给 A</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node end">
+    <span>💀</span>
+    <span>A 越来越强<br>其他专家"饿死"</span>
+  </div>
+</div>
+
+<p>用视频里的话说：<strong>"因为你一开始随机初始化的时候，可能某一个专家分数比较大。那么 softmax 后面就会把它的概率分布很尖锐。所有的 token 都会选择同一个专家，形成恶性循环。"</strong></p>
+
+<div class="warn">
+  ⚠️ <strong>后果</strong>：其他专家几乎收不到 token → 得不到梯度更新 → 能力越来越差 → Router 更不选它们 → 最终模型退化成一个小的 Dense 模型。
+</div>
+
+<h2>🛠️ 解决方案：Load Balancing Loss</h2>
+
+<p>负载均衡损失（也叫辅助损失，auxiliary loss）的公式：</p>
+
+<div class="formula-box">
+  📐 L<sub>balance</sub> = N · Σ<sub>i=1</sub><sup>N</sup> f<sub>i</sub> · p<sub>i</sub>
+</div>
+
+<p>其中：</p>
+<ul>
+  <li><span class="math">N</span> = 专家总数</li>
+  <li><span class="math">f<sub>i</sub></span> = 专家 i 实际被分配的 token 占比</li>
+  <li><span class="math">p<sub>i</sub></span> = Router 对专家 i 的平均选择概率</li>
+</ul>
+
+<div class="tip">
+  💡 <strong>直觉</strong>：如果分配均衡（每个专家收到差不多的 token），每个 f<sub>i</sub> 和 p<sub>i</sub> 都接近 1/N，乘积之和接近 1/N。乘以 N 后接近 1。如果分配不均衡（某专家收到 90% 的 token），乘积之和会更大，loss 也更大。
+</div>
+
+<h2>🔍 代码实现</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># MOEFeedForward.forward() 后半部分</span>
+    <br>
+    <span class="keyword">if</span> self.training <span class="keyword">and</span> self.config.router_aux_loss_coef &gt; 0:
+    <br>
+    &nbsp;&nbsp;<span class="comment"># 计算 f_i: 每个专家被分配的 token 占比</span>
+    <br>
+    &nbsp;&nbsp;load = F.one_hot(
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;topk_idx, num_experts
+    <br>
+    &nbsp;&nbsp;).float().mean(0)
+    <br><br>
+    &nbsp;&nbsp;<span class="comment"># 计算 p_i: Router 的平均选择概率</span>
+    <br>
+    &nbsp;&nbsp;pi = scores.mean(0)
+    <br><br>
+    &nbsp;&nbsp;<span class="comment"># L_balance = N * Σ(f_i * p_i)</span>
+    <br>
+    &nbsp;&nbsp;self.aux_loss = (
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;load * pi
+    <br>
+    &nbsp;&nbsp;).sum() * num_experts * router_aux_loss_coef
+  </div>
+  <div class="explain-side">
+    <p><strong>逐行解释：</strong></p>
+    <p><strong>load</strong>：用 <span class="highlight">one_hot</span> 把 topk_idx 变成独热编码，然后取平均。结果是一个长度为 N 的向量，每个元素表示对应专家"被选为 Top-K 的 token 占比"。</p>
+    <p><strong>pi</strong>：Router 对所有 token 输出的 softmax 概率的平均值。</p>
+    <p><strong>load * pi</strong>：逐元素相乘，如果某个专家既被分配了很多 token（f_i 大），Router 又经常给它高分（p_i 大），乘积就会很大，产生大惩罚。</p>
+    <p><strong>router_aux_loss_coef</strong>：系数，控制辅助损失的权重。MiniMind 默认 <span class="highlight">5e-4</span>。</p>
+  </div>
+</div>
+
+<h2>🧮 公式验证：均衡 vs 不均衡</h2>
+
+<p>视频里的例子，假设有 2 个专家：</p>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:16px 0;">
+  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
+    <h4 style="color:#15803d;margin:0 0 8px;">✅ 均衡</h4>
+    <p style="font-size:0.9rem;">专家0: f=0.5, p=0.5</p>
+    <p style="font-size:0.9rem;">专家1: f=0.5, p=0.5</p>
+    <p style="font-size:0.9rem;"><strong>Loss = 2 × (0.5×0.5 + 0.5×0.5) = 1.0</strong></p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="color:#dc2626;margin:0 0 8px;">❌ 不均衡</h4>
+    <p style="font-size:0.9rem;">专家0: f=0.9, p=0.9</p>
+    <p style="font-size:0.9rem;">专家1: f=0.1, p=0.1</p>
+    <p style="font-size:0.9rem;"><strong>Loss = 2 × (0.9×0.9 + 0.1×0.1) = 1.64</strong></p>
+  </div>
+</div>
+
+<p>不均衡的 loss 比均衡的 loss 大 64%，这个"额外惩罚"会通过反向传播告诉 Router：<strong>"不要把鸡蛋都放在一个篮子里！"</strong></p>
+
+<h2>🔗 辅助损失如何影响训练</h2>
+
+<p>在训练脚本中：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># train_epoch()</span>
+    <br>
+    res = model(input_ids, labels=labels)
+    <br>
+    <span class="highlight">loss = res.loss + res.aux_loss</span>
+    <br>
+    loss = loss / args.accumulation_steps
+    <br>
+    scaler.scale(loss).backward()
+  </div>
+  <div class="explain-side">
+    <p><strong>总损失 = 主损失（语言模型损失）+ 辅助损失（负载均衡）</strong></p>
+    <p>主损失（CrossEntropy）让模型学会"说对话"。</p>
+    <p>辅助损失（Load Balancing）让 Router 学"公平分配"。</p>
+    <p>两者共同作用，既保证模型能力，又防止专家坍塌。</p>
+  </div>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>专家坍塌</strong>是 MoE 训练的核心问题——少数专家"垄断"</li>
+    <li><strong>Load Balancing Loss</strong> 惩罚不均衡的分配</li>
+    <li><strong>公式</strong>：N · Σ(f_i · p_i)，f_i 是实际分配比例，p_i 是 Router 偏好</li>
+    <li><strong>代码</strong>：用 one_hot 计算 f_i，用 mean 计算 p_i</li>
+    <li><strong>系数</strong>：router_aux_loss_coef = 5e-4，权重小但关键</li>
+  </ol>
+</div>
+
+<div class="nav-buttons">
+  <a href="14-moe-routing.html" class="nav-btn prev">← 上一章：路由网络</a>
+  <a href="16-moe-z-loss.html" class="nav-btn next">下一章：Z-Loss 正则项 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 15 章 · MoE 负载均衡</p></div>
+</body>
+</html>

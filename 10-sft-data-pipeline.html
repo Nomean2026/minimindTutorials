@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 - SFT 数据构建 | MiniMind 教程</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --bg: #ffffff;
+    --bg-card: #f8fafc;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 {
+    font-size: 1.4rem; margin: 40px 0 16px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--primary);
+  }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+
+  .review-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+
+  .code-panel {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    margin: 20px 0;
+  }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 20px; overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem; line-height: 1.6;
+  }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .type { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side {
+    background: var(--bg-card);
+    padding: 20px;
+    font-size: 0.92rem;
+  }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn {
+    padding: 12px 24px; border-radius: 8px; text-decoration: none;
+    font-weight: 600; transition: all 0.2s;
+  }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+
+  .data-flow { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 24px 0; padding: 20px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+  .data-flow .step { background: #fff; border: 2px solid var(--primary); border-radius: 8px; padding: 10px 18px; font-size: 0.9rem; font-weight: 600; }
+  .data-flow .arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .data-flow .step.done { background: #d1fae5; border-color: var(--success); }
+  .data-flow .step.active { background: #fef3c7; border-color: var(--warning); }
+
+  .token-visual { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; overflow-x: auto; }
+  .token-visual .token { display: inline-block; padding: 4px 10px; margin: 2px; border-radius: 4px; font-size: 0.85rem; font-family: monospace; }
+  .token-visual .token.user { background: #dbeafe; color:#1e40af; }
+  .token-visual .token.assistant { background: #d1fae5; color:#065f46; }
+  .token-visual .token.special { background: #f1f5f9; color:#475569; }
+  .token-visual .token.ignore { background: #f1f5f9; color:#cbd5e1; }
+  .token-visual .token.loss { background: #fef3c7; color:#92400e; }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="09-sft-overview.html">← 上一章</a>
+  <a href="11-sft-vs-pretrain.html">下一章 →</a>
+  <span class="title">第 10 章 · SFT 数据构建</span>
+</div>
+
+<div class="container">
+
+<h1>📦 SFT 数据构建</h1>
+<p class="subtitle">对话格式、Chat Template、损失掩码——SFT 数据到底长什么样？</p>
+
+<!-- ============ 快速复习 ============ -->
+<div class="review-box">
+  <h3>📖 快速复习：上一章讲了什么</h3>
+  <ul>
+    <li><strong>SFT 和 Pre-train 架构相同</strong>，区别在<strong>数据格式</strong>和<strong>损失范围</strong></li>
+    <li>SFT 只对 <strong>assistant 的回答</strong>算 loss，用户输入部分用 <span class="math">-100</span> 跳过</li>
+    <li>学习率从 <span class="math">5 × 10⁻⁴</span> 降到 <span class="math">1 × 10⁻⁵</span>（小 50 倍）</li>
+    <li>损失计算的区别完全在 <strong>labels 的构造</strong>上，模型本身不感知</li>
+  </ul>
+</div>
+
+<h2>🧱 数据格式：从纯文本到对话</h2>
+
+<p>预训练数据是这样的（纯文本，一行一条）：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># pretrain_t2t_mini.jsonl</span>
+    <br>
+    {<span class="string">"text"</span>: <span class="string">"在很久很久以前，有一座山，山上有一座庙..."</span>}
+    <br>
+    {<span class="string">"text"</span>: <span class="string">"量子力学是描述微观粒子的物理学理论..."</span>}
+  </div>
+  <div class="explain-side">
+    <p>简单粗暴：<strong>一条文本就是一个样本</strong>。</p>
+    <p>模型的任务：看完前半段，预测后半段。</p>
+  </div>
+</div>
+
+<p>SFT 数据长这样（对话格式）：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># sft_t2t_mini.jsonl</span>
+    <br>
+    {<span class="string">"conversations"</span>: [
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"user"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"今天天气怎么样？"</span>},
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"assistant"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"今天天气晴朗，温度20°C..."</span>}
+    <br>
+  ]}
+  </div>
+  <div class="explain-side">
+    <p>每条数据是一个<strong>对话列表</strong>，每条消息有 role 和 content。</p>
+    <p>模型的任务：看完<strong>整个对话历史</strong>，能正确预测 assistant 的回答。</p>
+  </div>
+</div>
+
+<h2>🔄 数据流：一条 SFT 样本的一生</h2>
+
+<div class="data-flow">
+  <span class="step active">① raw JSON</span>
+  <span class="arrow">→</span>
+  <span class="step">② 预处理</span>
+  <span class="arrow">→</span>
+  <span class="step">③ Chat Template</span>
+  <span class="arrow">→</span>
+  <span class="step">④ Tokenize</span>
+  <span class="arrow">→</span>
+  <span class="step">⑤ 生成 Labels</span>
+  <span class="arrow">→</span>
+  <span class="step done">⑥ 训练</span>
+</div>
+
+<h3>步骤 ① ~ ②：原始 JSON → 预处理</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># SFTDataset.__getitem__()</span>
+    <br>
+    sample = self.samples[index]
+    <br>
+    conversations = pre_processing_chat(sample[<span class="string">'conversations'</span>])
+    <br>
+    prompt = <span class="keyword">self</span>.create_chat_prompt(conversations)
+    <br>
+    input_ids = tokenizer(prompt).input_ids[:max_length]
+    <br>
+    labels = <span class="keyword">self</span>.generate_labels(input_ids)
+  </div>
+  <div class="explain-side">
+    <p>预处理 <span class="highlight">pre_processing_chat()</span> 做了两件事：</p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li>如果有 tool use 数据，完整保留</li>
+      <li>以 <strong>20% 的概率</strong>给对话加上 system prompt（"你是一个有用的AI助手"等）</li>
+    </ol>
+    <p>为什么要随机加？让模型学会<strong>有时有 system prompt，有时没有</strong>，增加泛化能力。</p>
+  </div>
+</div>
+
+<h3>步骤 ③：Chat Template——把对话变成文本</h3>
+
+<p>模型看不懂 JSON，它只能看 token。所以我们需要把对话"渲染"成一段文本：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># create_chat_prompt()</span>
+    <br>
+    <span class="keyword">def</span> <span class="func">create_chat_prompt</span>(self, conversations):
+    <br>
+    &nbsp;&nbsp;messages = []
+    <br>
+    &nbsp;&nbsp;<span class="keyword">for</span> message <span class="keyword">in</span> conversations:
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;messages.append(<span class="keyword">dict</span>(message))
+    <br>
+    &nbsp;&nbsp;<span class="keyword">return</span> <span class="keyword">self</span>.tokenizer.apply_chat_template(
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;messages,
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;tokenize=<span class="keyword">False</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;add_generation_prompt=<span class="keyword">False</span>
+    <br>
+    &nbsp;&nbsp;)
+  </div>
+  <div class="explain-side">
+    <p><span class="highlight">apply_chat_template()</span> 是 tokenizer 自带的方法，它根据模型的 chat template 把对话"渲染"成一段文本。</p>
+    <p>对于 MiniMind，渲染后的结果类似：</p>
+    <p style="background:#f1f5f9;padding:8px;border-radius:6px;font-size:0.85rem;font-family:monospace;">
+      &lt;bos&gt;&lt;user&gt;\n今天天气怎么样？\n&lt;/user&gt;\n&lt;assistant&gt;\n今天天气晴朗。\n&lt;/assistant&gt;\n&lt;eos&gt;
+    </p>
+  </div>
+</div>
+
+<h3>步骤 ④：Tokenize——文本变数字</h3>
+
+<p>把上一步的文本变成 token ID 序列：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># tokenize 结果（简化示意）</span>
+    <br>
+    input_ids = [
+    <br>
+    &nbsp;&nbsp;BOS,   <span class="comment"># 1</span>
+    <br>
+    &nbsp;&nbsp;USER,  今, 天, 天, 气, 怎, 么, 样, ?, USER_END,
+    <br>
+    &nbsp;&nbsp;ASST,  今, 天, 天, 气, 晴, 朗, ., ASST_END,
+    <br>
+    &nbsp;&nbsp;EOS,   PAD, PAD, ...
+    <br>
+    ]
+  </div>
+  <div class="explain-side">
+    <p>对话中的特殊标记（如 <span class="highlight">&lt;user&gt;</span>、<span class="highlight">&lt;assistant&gt;</span>）在 tokenizer 的词表中都有对应的 ID。</p>
+    <p>这些特殊标记也是"token"，模型需要学会它们的含义。</p>
+  </div>
+</div>
+
+<h3>步骤 ⑤：生成 Labels——"掩码"的艺术</h3>
+
+<p>这一步是 SFT 数据构建的<strong>精髓</strong>。来看 <span class="math">generate_labels()</span> 的实现：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="keyword">def</span> <span class="func">generate_labels</span>(self, input_ids):
+    <br>
+    &nbsp;&nbsp;labels = [-100] * len(input_ids)
+    <br>
+    &nbsp;&nbsp;i = 0
+    <br>
+    &nbsp;&nbsp;<span class="keyword">while</span> i &lt; len(input_ids):
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># 找到 assistant 的开始标记</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> input_ids[i:i+len(self.bos_id)] == self.bos_id:
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;start = i + len(self.bos_id)
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end = start
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">while</span> end &lt; len(input_ids):
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># 直到遇到 assistant 的结束标记</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> input_ids[end:end+len(self.eos_id)] == self.eos_id:
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">break</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end += 1
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># assistant 部分保留 label</span>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">for</span> j <span class="keyword">in</span> range(start, min(end + len(self.eos_id), max_length)):
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;labels[j] = input_ids[j]
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;i = end + len(self.eos_id)
+    <br>
+    &nbsp;&nbsp;<span class="keyword">return</span> labels
+  </div>
+  <div class="explain-side">
+    <p><strong>这个函数做了什么？</strong></p>
+    <p>它在 input_ids 中<strong>找到所有 assistant 回答的位置</strong>，然后把 label 设为实际的 token ID。</p>
+    <p>其余位置（user 输入 + padding）都设为 <span class="highlight">-100</span>。</p>
+    <p><span class="math">-100</span> 是 PyTorch CrossEntropyLoss 的<strong>特殊忽略值</strong>——在这些位置不计算梯度。</p>
+    
+    <p><strong>注意</strong>：这里匹配的是 <span class="math">self.bos_id</span>，它是 <code>tokenizer(f'{bos_token}assistant\n')</code> 的结果，用来定位 assistant 回答的起始位置。</p>
+  </div>
+</div>
+
+<p>让我们用可视化的方式看看 labels 长什么样：</p>
+
+<div class="token-visual">
+  <div>
+    <strong>input_ids:</strong>
+    <span class="token special">BOS</span>
+    <span class="token user">&lt;user&gt;</span>
+    <span class="token user">今</span><span class="token user">天</span><span class="token user">天</span><span class="token user">气</span><span class="token user">怎</span><span class="token user">么</span><span class="token user">样</span><span class="token user">?</span>
+    <span class="token user">&lt;/user&gt;</span>
+    <span class="token assistant">&lt;assistant&gt;</span>
+    <span class="token assistant">今</span><span class="token assistant">天</span><span class="token assistant">晴</span><span class="token assistant">朗</span>
+    <span class="token assistant">&lt;/assistant&gt;</span>
+    <span class="token special">EOS</span>
+    <span class="token ignore">PAD</span><span class="token ignore">PAD</span>
+  </div>
+  <div style="margin-top:12px;">
+    <strong>labels:</strong>
+    <span class="token ignore">-100</span>
+    <span class="token ignore">-100</span>
+    <span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span><span class="token ignore">-100</span>
+    <span class="token ignore">-100</span>
+    <span class="token loss">今</span><span class="token loss">天</span><span class="token loss">晴</span><span class="token loss">朗</span>
+    <span class="token loss">&lt;/assistant&gt;</span>
+    <span class="token loss">EOS</span>
+    <span class="token ignore">-100</span><span class="token ignore">-100</span>
+  </div>
+  <div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">
+    🟦 蓝色 = 用户输入（不计算 loss） | 🟩 绿色 = 模型回答（计算 loss） | ⬜ 灰色 = padding（忽略）
+  </div>
+</div>
+
+<h2>🎨 多轮对话的处理</h2>
+
+<p>上面的例子只有一轮（一问一答）。但真实 SFT 数据经常是<strong>多轮对话</strong>：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 多轮对话示例</span>
+    <br>
+    {<span class="string">"conversations"</span>: [
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"user"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"1+1等于几？"</span>},
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"assistant"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"等于2"</span>},
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"user"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"那2+2呢？"</span>},
+    <br>
+    &nbsp;&nbsp;{<span class="string">"role"</span>: <span class="string">"assistant"</span>,
+    <br>
+    &nbsp;&nbsp;&nbsp;<span class="string">"content"</span>: <span class="string">"等于4"</span>}
+    <br>
+  ]}
+  </div>
+  <div class="explain-side">
+    <p>有趣的是，<span class="highlight">generate_labels()</span> 使用 <span class="math">while</span> 循环，可以自动处理多轮对话！</p>
+    <p>它会在 input_ids 中<strong>找到所有的</strong> <code>&lt;assistant&gt;...&lt;/assistant&gt;</code> 区间，把它们都设为有效的 label。</p>
+    <p>这样，模型在<strong>每一轮</strong>都要学会正确回答，而不是只学最后一轮。</p>
+  </div>
+</div>
+
+<div class="tip">
+  💡 <strong>多轮对话的 loss 变化</strong>：随着对话进行，上下文越来越长，模型需要"记住"前面的对话历史。
+  这相当于在训练模型的<strong>长程记忆能力</strong>和<strong>上下文关联能力</strong>。
+</div>
+
+<h2>📊 数据统计：Pretrain vs SFT</h2>
+
+<table class="compare-table">
+  <thead>
+    <tr>
+      <th>维度</th>
+      <th>🔧 Pre-train 数据</th>
+      <th>💬 SFT 数据</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>数据量</td><td>~10GB+</td><td>~几 MB 到几百 MB</td></tr>
+    <tr><td>数据格式</td><td>纯文本（text 字段）</td><td>对话列表（conversations 字段）</td></tr>
+    <tr><td>数据来源</td><td>互联网爬取</td><td>人工标注 / 蒸馏</td></tr>
+    <tr><td>质量要求</td><td>低（量大就行）</td><td>高（每个回答都要有用）</td></tr>
+    <tr><td>序列长度</td><td>较短（340）</td><td>较长（768+）</td></tr>
+    <tr><td>Dataset 类</td><td>PretrainDataset</td><td>SFTDataset</td></tr>
+  </tbody>
+</table>
+
+<h2>🧪 自己动手：调试 labels</h2>
+
+<p>在 <span class="math">SFTDataset</span> 中有这样一段被注释掉的调试代码，你可以取消注释来亲眼看看 labels 是怎么生成的：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># # === 调试打印 ===</span>
+    <br>
+    <span class="comment"># print(f"\n--- Sample {index} ---")</span>
+    <br>
+    <span class="comment"># for i, (x, y) in enumerate(</span>
+    <br>
+    <span class="comment"># &nbsp;&nbsp;zip(input_ids[:-1], labels[1:])</span>
+    <br>
+    <span class="comment"># ):</span>
+    <br>
+    <span class="comment"># &nbsp;&nbsp;print(f"{i:3d}: X={tokenizer.decode([x])!r:16s} ---&gt; Y={tokenizer.decode([input_ids[i+1]])!r:16s} label={y}")</span>
+    <br>
+    <span class="comment"># # ================</span>
+  </div>
+  <div class="explain-side">
+    <p>这个循环打印了<strong>每个位置</strong>的输入 X 和要预测的目标 Y，以及 label 值。</p>
+    <p>如果 label = -100，说明这个位置不参与训练。</p>
+    <p>试试取消注释，运行训练脚本，看看控制台输出！</p>
+  </div>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <p><strong>SFT 数据构建的核心要点：</strong></p>
+  <ol>
+    <li><strong>对话格式</strong>：每条数据是一个 role/content 列表</li>
+    <li><strong>Chat Template</strong>：用 tokenizer.apply_chat_template() 把对话渲染成文本</li>
+    <li><strong>损失掩码</strong>：labels 中只保留 assistant 回答位置，其余设为 -100</li>
+    <li><strong>多轮支持</strong>：generate_labels() 自动找到所有 assistant 区间</li>
+    <li><strong>随机 system prompt</strong>：以 20% 概率添加，增加泛化能力</li>
+    <li><strong>数据量少但精</strong>：SFT 数据不需要很大，但质量必须高</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：SFT 数据中，如果某条对话有 3 轮（user→assistant→user→assistant→user→assistant），
+  模型是<strong>只学最后一轮的 loss</strong>，还是三轮的 loss 都学？为什么？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;"><strong>三轮都学！</strong> generate_labels() 会找到<strong>所有</strong> <code>&lt;assistant&gt;...&lt;/assistant&gt;</code> 区间。
+    这是因为模型需要学会在<strong>任何一轮</strong>中都给出好的回答，而不仅仅是最后一轮。
+    如果只学最后一轮，中间轮次的错误回答就没有梯度信号去纠正了。
+    <br><br>
+    打个比方：如果老师只批改期末考试的最后一题，那期中考试做错了也没人知道——学生永远不会改进。
+    </p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="09-sft-overview.html" class="nav-btn prev">← 上一章：SFT 概览</a>
+  <a href="11-sft-vs-pretrain.html" class="nav-btn next">下一章：SFT vs Pretrain 对比 →</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p>MiniMind 教程 · 第 10 章 · SFT 数据构建</p>
+</div>
+
+</body>
+</html>

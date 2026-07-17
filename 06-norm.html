@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 - 层归一化 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; font-size: 1.05rem; }
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="05-ffn.html">← 上一章</a>
+  <a href="07-model-assembly.html">下一章 →</a>
+  <span class="title">第 06 章 · 层归一化</span>
+</div>
+<div class="container">
+
+<h1>📏 层归一化（RMSNorm）</h1>
+<p class="subtitle">"稳住，别让数值飞了"——为什么大模型需要 RMSNorm 而不是 LayerNorm</p>
+
+<div class="warn" style="background:#f0f9ff;border-left-color:var(--primary);">
+  <strong>📖 快速复习</strong>：前面我们学了 Attention 和 FFN，它们内部都有很多线性变换和激活函数。
+  如果没有归一化，经过多层叠加后数值会越来越大或越来越小（梯度消失/爆炸）。
+  归一化就是给每一层的输出"踩刹车"。
+</div>
+
+<h2>🎯 为什么要归一化？</h2>
+
+<p>随着网络层数加深，每一层的输出分布会发生变化（内部协变量偏移）。具体来说：</p>
+<ul>
+  <li><strong>数值会越滚越大</strong>：Attention 的输出 + 残差连接 + FFN = 数值范围逐渐失控</li>
+  <li><strong>梯度会消失</strong>：sigmoid/tanh 在输入很大时梯度接近 0</li>
+  <li><strong>训练不稳定</strong>：不同 batch 的数据分布差异大</li>
+</ul>
+
+<h2>📐 RMSNorm vs LayerNorm</h2>
+
+<p>原版 Transformer 用的是 <strong>LayerNorm</strong>，MiniMind（和 Llama）用的是 <strong>RMSNorm</strong>。</p>
+
+<div class="formula-box">
+  <strong>LayerNorm</strong>：x̂ = (x - μ) / σ &emsp; y = γ · x̂ + β<br>
+  <strong>RMSNorm</strong>：x̂ = x / RMS(x) &emsp; y = γ · x̂<br><br>
+  其中 <span class="math">RMS(x) = √(1/d · Σ x<sub>i</sub>²)</span><br>
+  LayerNorm 计算<strong>均值和方差</strong>，RMSNorm <strong>只算均方根</strong>！
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;">
+  <div style="background:var(--bg-card);border-radius:10px;padding:16px;">
+    <h4 style="margin:0 0 8px;color:var(--primary);">LayerNorm</h4>
+    <ul style="font-size:0.85rem;margin:0;">
+      <li>减均值 → 除方差 → 缩放+平移</li>
+      <li>需要 2 次统计量 + 2 个可学习参数</li>
+      <li>计算量大 15-20%</li>
+      <li>原版 Transformer 在用</li>
+    </ul>
+  </div>
+  <div style="background:var(--bg-card);border-radius:10px;padding:16px;">
+    <h4 style="margin:0 0 8px;color:var(--success);">RMSNorm ✅</h4>
+    <ul style="font-size:0.85rem;margin:0;">
+      <li>只用均方根归一化</li>
+      <li>只需要 1 个可学习参数（γ）</li>
+      <li>计算量减少 ~15%</li>
+      <li>Llama / MiniMind 在用</li>
+    </ul>
+  </div>
+</div>
+
+<h2>🧩 MiniMind 中的 RMSNorm</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> RMSNorm(torch.nn.Module):
+    <span class="keyword">def</span> __init__(self, dim, eps=1e-5):
+        <span class="keyword">super</span>().__init__()
+        self.eps = eps
+        <span class="comment"># 可学习的缩放参数</span>
+        self.weight = nn.Parameter(
+            torch.ones(dim))
+
+    <span class="keyword">def</span> norm(self, x):
+        <span class="comment"># RMS = √(mean(x²) + eps)</span>
+        <span class="keyword">return</span> x * torch.rsqrt(
+            x.pow(2).mean(-1, keepdim=True)
+            + self.eps
+        )
+
+    <span class="keyword">def</span> forward(self, x):
+        <span class="comment"># x ∈ [batch, seq, dim]</span>
+        <span class="comment"># 在最后一维（dim）上做归一化</span>
+        output = self.norm(x.float())
+        <span class="keyword">return</span> (self.weight * output).type_as(x)
+  </div>
+  <div class="explain-side">
+    <p><strong>只有 4 行核心逻辑！</strong></p>
+    <p><span class="highlight">x.pow(2).mean(-1)</span>：对每个 token 的 768 维向量求平方均值 → [batch, seq]</p>
+    <p><span class="highlight">rsqrt(… + eps)</span>：求平方根的倒数（<code>1/√(·)</code>），比先 sqrt 再除法快</p>
+    <p><span class="highlight">x * rsqrt(…)</span>：归一化，使每个向量的 RMS ≈ 1</p>
+    <p><span class="highlight">self.weight * output</span>：可学习的缩放（每个维度有自己的缩放系数）</p>
+    <p><strong>为什么不用 bias（β）？</strong> 实验表明 LayerNorm 的 bias 对效果影响极小，RMSNorm 直接去掉，省了 768 个参数/层。</p>
+  </div>
+</div>
+
+<h2>🏗️ RMSNorm 在模型中的位置</h2>
+
+<p>在 MiniMind 中，RMSNorm 出现在三个地方：</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead><tr style="background:var(--primary);color:#fff;"><th>位置</th><th>作用</th></tr></thead>
+  <tbody>
+    <tr><td><code>self.input_layernorm</code>（每个 Block）</td><td>Attention 之前，归一化输入</td></tr>
+    <tr><td><code>self.post_attention_layernorm</code>（每个 Block）</td><td>FFN 之前，归一化 Attention 输出</td></tr>
+    <tr><td><code>self.norm</code>（模型最后）</td><td>最终输出层前归一化</td></tr>
+    <tr><td><code>q_norm / k_norm</code>（Attention 内）</td><td>Q 和 K 的 head 维度归一化</td></tr>
+  </tbody>
+</table>
+
+<div class="tip">
+  💡 <strong>Pre-Norm vs Post-Norm</strong>：MiniMind 使用的是 Pre-Norm（归一化放在子层之前）。
+  这是现代 LLM 的标准做法（相比原版 Transformer 的 Post-Norm），训练更稳定，可以支持更深的网络。
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>归一化的目的</strong>：防止深层网络的数值爆炸/消失，稳定训练</li>
+    <li><strong>RMSNorm vs LayerNorm</strong>：只求均方根、只用一个可学习参数、快 15%</li>
+    <li><strong>RMSNorm 公式</strong>：x / √(mean(x²) + ε) × γ</li>
+    <li><strong>Pre-Norm 结构</strong>：归一化放在 Attention/FFN 之前</li>
+    <li><strong>MiniMind 中的 4 处使用</strong>：input_layernorm、post_attention_layernorm、final norm、QK norm</li>
+  </ol>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：RMSNorm 去掉了均值中心化（不减均值），为什么还能正常工作？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;">这是一个很好的问题！LayerNorm 减均值是为了让数据居中（零均值），但 RMSNorm 只做缩放不做平移。</p>
+    <p>RMSNorm 能工作的原因：</p>
+    <ol>
+      <li><strong>残差连接保留均值</strong>：虽然归一化没做均值中心化，但残差连接 (x + F(x)) 保留了输入的均值信息——如果输入本来均值不为 0，残差会自然带着走</li>
+      <li><strong>归一化的核心是缩放</strong>：对 Transformer 来说，<strong>控制方差</strong>比<strong>控制均值</strong>更重要。因为 Attention 的点积对数值范围极其敏感（QK.T 的方差过大会让 softmax 太尖锐）</li>
+      <li><strong>Llama 的实践证明</strong>：去掉均值中心化没有明显影响，却省掉了计算均值的开销</li>
+    </ol>
+    <p>一句话：<strong>减去均值是冗余的</strong>——残差连接已经天然做了"去均值"的效果。</p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="05-ffn.html" class="nav-btn prev">← 上一章：前馈网络</a>
+  <a href="07-model-assembly.html" class="nav-btn next">下一章：完整模型组装 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 06 章 · 层归一化</p></div>
+</body>
+</html>
