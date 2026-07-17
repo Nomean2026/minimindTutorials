@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 - SFT 推理生成 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+
+  .sampling-demo { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  .sampling-demo .prob-col { flex: 1; padding: 16px; text-align: center; min-width: 60px; }
+  .sampling-demo .prob-col .bar { height: 100px; border-radius: 6px; margin: 0 auto 8px; max-width: 40px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+  .sampling-demo .prob-col .bar .fill { width: 100%; border-radius: 6px; min-height: 4px; transition: height 0.3s; }
+  .sampling-demo .prob-col .token-text { font-size: 0.8rem; font-weight: 600; }
+  .sampling-demo .prob-col .prob-val { font-size: 0.7rem; color: var(--text-muted); }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="11-sft-vs-pretrain.html">← 上一章</a>
+  <a href="13-moe-intro.html">下一章 →</a>
+  <span class="title">第 12 章 · SFT 推理生成</span>
+</div>
+<div class="container">
+
+<h1>🎲 SFT 推理生成</h1>
+<p class="subtitle">采样策略解密：top-k、top-p、temperature——让模型不只会"背诵"</p>
+
+<div class="review-box">
+  <h3>📖 前情提要</h3>
+  <p>SFT 之后，模型学会了对话格式。但真正用的时候，还有一个关键问题：<strong>模型每次回答同一问题，应该一样吗？</strong></p>
+</div>
+
+<h2>🎯 从"背诵"到"创作"</h2>
+<p>训练完成后，模型本质上是一个<strong>概率分布</strong>：给定前面的 token，它知道下一个 token 该是什么。</p>
+<p>但知道"该是什么"和"选什么"是两回事：</p>
+
+<div class="tip">
+  💡 <strong>比喻一下</strong>：模型就像一个学会了无数成语的人。他知道在"天气真"后面可以接"好"、"棒"、"不错"、"暖和"……
+  如果每次都选概率最高的"好"，那千篇一律。如果随机选一个，可能选到奇怪的组合。
+  好的采样策略就是找到"多样性"和"合理性"的平衡点。
+</div>
+
+<h2>🥶 Temperature：调节"自信程度"</h2>
+<p>Temperature 是最基础也最重要的采样参数：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 原始 logits</span>
+    <br>
+    logits = [2.0, 1.0, 0.5, 0.1]
+    <br><br>
+    <span class="comment"># 除以 temperature</span>
+    <br>
+    logits = logits / temperature
+    <br><br>
+    <span class="comment"># 然后做 softmax</span>
+    <br>
+    probs = F.softmax(logits, dim=-1)
+  </div>
+  <div class="explain-side">
+    <p><strong>Temperature 的作用：</strong></p>
+    <p><span class="highlight">T → 0</span>：概率分布趋于 one-hot，总是选最可能的 token（确定性）</p>
+    <p><span class="highlight">T = 1</span>：保持原始分布</p>
+    <p><span class="highlight">T → ∞</span>：所有 token 等概率（完全随机）</p>
+    <p>MiniMind 默认用 <span class="highlight">0.85</span>，偏保守但留有一定创造力。</p>
+  </div>
+</div>
+
+<p>数学公式：<span class="math">P(xᵢ) = exp(logitᵢ / T) / Σⱼ exp(logitⱼ / T)</span></p>
+
+<h2>🎯 Top-K：只从"K 个候选人"里选</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># Top-K 过滤</span>
+    <br>
+    <span class="keyword">if</span> top_k &gt; 0:
+    <br>
+    &nbsp;&nbsp;values, _ = torch.topk(logits, top_k)
+    <br>
+    &nbsp;&nbsp;threshold = values[..., -1, None]
+    <br>
+    &nbsp;&nbsp;logits[logits &lt; threshold] = -inf
+  </div>
+  <div class="explain-side">
+    <p><strong>Top-K 的思路：</strong>只保留概率最高的 K 个 token，其他的概率置零。</p>
+    <p>好处是避免了"长尾概率"的干扰——不会选到概率很低的奇怪 token。</p>
+    <p>MiniMind 默认 <span class="highlight">top_k = 50</span>。</p>
+  </div>
+</div>
+
+<h2>🔝 Top-P（Nucleus Sampling）：动态候选集</h2>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># Top-P (nucleus) 过滤</span>
+    <br>
+    sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+    <br>
+    cum_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+    <br>
+    mask = cum_probs &gt; top_p
+    <br>
+    mask[..., 1:] = mask[..., :-1].clone()
+    <br>
+    mask[..., 0] = <span class="number">0</span>
+    <br>
+    logits[mask.scatter(1, sorted_indices, mask)] = -inf
+  </div>
+  <div class="explain-side">
+    <p><strong>Top-P 的思路：</strong>选取概率累积和达到 P 的最小 token 集合。</p>
+    <p>如果分布很尖锐（某个 token 概率 90%），只需要 1-2 个 token。</p>
+    <p>如果分布很平坦，会选更多 token。</p>
+    <p>MiniMind 默认 <span class="highlight">top_p = 0.85</span>。</p>
+  </div>
+</div>
+
+<h2>🔄 采样策略对比</h2>
+
+<table class="compare-table" style="width:100%;border-collapse:collapse;margin:20px 0;border-radius:12px;overflow:hidden;">
+  <thead><tr><th>策略</th><th>原理</th><th>优点</th><th>缺点</th></tr></thead>
+  <tbody>
+    <tr><td>Temperature</td><td>缩放 logits</td><td>连续控制"创造力"</td><td>不能过滤低概率 token</td></tr>
+    <tr><td>Top-K</td><td>固定 K 个候选人</td><td>简单直接</td><td>K 需要人工调，不同场景最优 K 不同</td></tr>
+    <tr><td>Top-P</td><td>累积概率到 P</td><td>自适应候选数</td><td>极端分布下退化成 greedy</td></tr>
+    <tr><td>三者组合</td><td>先 top-k，再 top-p，再 temperature</td><td>兼顾稳定性和多样性</td><td>超参数多</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 本章小结</h2>
+<div class="tip">
+  <p>推理生成的核心是<strong>平衡确定性和多样性</strong>：</p>
+  <ul>
+    <li><strong>Temperature</strong>：控制整体"随机性"</li>
+    <li><strong>Top-K</strong>：砍掉长尾概率</li>
+    <li><strong>Top-P</strong>：动态保留"核心"概率</li>
+    <li><strong>Repetition Penalty</strong>：惩罚重复出现的 token，防止重复循环</li>
+  </ul>
+</div>
+
+<div class="nav-buttons">
+  <a href="11-sft-vs-pretrain.html" class="nav-btn prev">← 上一章：SFT vs Pretrain</a>
+  <a href="13-moe-intro.html" class="nav-btn next">下一章：MoE 概念入门 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 12 章 · SFT 推理生成</p></div>
+</body>
+</html>
