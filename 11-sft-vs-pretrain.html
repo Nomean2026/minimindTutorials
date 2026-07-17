@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11 - SFT vs Pretrain 对比 | MiniMind 教程</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --bg: #ffffff;
+    --bg-card: #f8fafc;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+
+  .code-panel {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    margin: 20px 0;
+  }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 20px; overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem; line-height: 1.6;
+  }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .type { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side {
+    background: var(--bg-card);
+    padding: 20px;
+    font-size: 0.92rem;
+  }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+
+  .compare-row { display: flex; gap: 16px; margin: 20px 0; }
+  @media (max-width: 640px) { .compare-row { flex-direction: column; } }
+  .compare-col {
+    flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .compare-col h4 { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid; }
+  .compare-col.pretrain h4 { color: var(--primary); border-color: var(--primary); }
+  .compare-col.sft h4 { color: var(--accent); border-color: var(--accent); }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="10-sft-data-pipeline.html">← 上一章</a>
+  <a href="12-sft-inference.html">下一章 →</a>
+  <span class="title">第 11 章 · SFT vs Pretrain 对比</span>
+</div>
+
+<div class="container">
+
+<h1>⚖️ SFT vs Pretrain 深度对比</h1>
+<p class="subtitle">用一个表格 + 三个代码差异 + 两个比喻，让你彻底搞懂</p>
+
+<div class="review-box">
+  <h3>📖 前情提要</h3>
+  <ul>
+    <li><strong>SFT 概览</strong>：SFT 让模型学会"对话"和"指令遵循"</li>
+    <li><strong>SFT 数据构建</strong>：对话格式 + Chat Template + 损失掩码（只对 assistant 算 loss）</li>
+    <li>核心公式回顾：<span class="math">Loss = CrossEntropy(logits[:-1], labels[1:], ignore_index=-100)</span></li>
+  </ul>
+</div>
+
+<h2>📊 一言以蔽之：对比总表</h2>
+
+<table class="compare-table">
+  <thead>
+    <tr>
+      <th style="width:15%;">对比维度</th>
+      <th style="width:35%;">🔧 预训练 (Pre-train)</th>
+      <th style="width:35%;">💬 监督微调 (SFT)</th>
+      <th style="width:15%;">差异倍数</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>🎯 目标</strong></td>
+      <td>学习语言规律、世界知识</td>
+      <td>学习对话格式、指令遵循</td>
+      <td>定性不同</td>
+    </tr>
+    <tr>
+      <td><strong>📖 数据格式</strong></td>
+      <td>纯文本 <code>{"text": "..."}</code></td>
+      <td>对话 <code>{"conversations": [{"role":"user","content":"..."}, ...]}</code></td>
+      <td>定性不同</td>
+    </tr>
+    <tr>
+      <td><strong>🔲 Loss 范围</strong></td>
+      <td>全部非 PAD token</td>
+      <td>仅 assistant 回答部分</td>
+      <td>定性不同</td>
+    </tr>
+    <tr>
+      <td><strong>📈 学习率</strong></td>
+      <td><span class="math">5 × 10⁻⁴</span></td>
+      <td><span class="math">1 × 10⁻⁵</span></td>
+      <td><strong>⬇ 1/50</strong></td>
+    </tr>
+    <tr>
+      <td><strong>📦 数据量</strong></td>
+      <td>TB 级（海量）</td>
+      <td>MB ~ GB 级（少量）</td>
+      <td><strong>⬇ 1/1000+</strong></td>
+    </tr>
+    <tr>
+      <td><strong>🔄 Epoch</strong></td>
+      <td>1 ~ 2</td>
+      <td>2 ~ 3</td>
+      <td><strong>⬆ 1.5~3x</strong></td>
+    </tr>
+    <tr>
+      <td><strong>🏋️ Batch Size</strong></td>
+      <td>32（含 8 梯度累积）</td>
+      <td>16（无/少累积）</td>
+      <td><strong>⬇ 1/2</strong></td>
+    </tr>
+    <tr>
+      <td><strong>📐 序列长度</strong></td>
+      <td>340</td>
+      <td>768</td>
+      <td><strong>⬆ 2.3x</strong></td>
+    </tr>
+    <tr>
+      <td><strong>⚖️ 权重初始化</strong></td>
+      <td>随机初始化（从零开始）</td>
+      <td>加载预训练权重</td>
+      <td>定性不同</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>🔬 深入对比：三大核心差异</h2>
+
+<h3>差异一：Loss 范围（最重要！）</h3>
+
+<p>两个训练脚本的 <span class="math">train_epoch()</span> 函数<strong>几乎一模一样</strong>，区别在数据集的 labels 构造上：</p>
+
+<div class="compare-row">
+  <div class="compare-col pretrain">
+    <h4>🔧 预训练：全序列学习</h4>
+    <pre style="font-size:0.8rem;background:#f1f5f9;padding:12px;border-radius:8px;overflow-x:auto;">
+# PretrainDataset
+tokens = [BOS] + text_tokens + [EOS]
+input_ids = tokens + [PAD] * padding
+labels = input_ids  # 直接复制！
+labels[PAD_mask] = -100
+
+# 结果：除 padding 外全学</pre>
+    <p style="font-size:0.88rem;margin-top:8px;">模型读一本书，每一页的每一个字都要学会预测。这叫"全文背诵"。</p>
+  </div>
+  <div class="compare-col sft">
+    <h4>💬 SFT：只学回答部分</h4>
+    <pre style="font-size:0.8rem;background:#f1f5f9;padding:12px;border-radius:8px;overflow-x:auto;">
+# SFTDataset
+labels = [-100] * len(input_ids)
+# 只保留 &lt;assistant&gt;...&lt;/assistant&gt;
+# 之间的 token 的 label
+labels[asst_start:asst_end] = input_ids[asst_start:asst_end]
+
+# 结果：只学模型回答</pre>
+    <p style="font-size:0.88rem;margin-top:8px;">模型参加考试，只看答案部分打分。题目写得再烂不扣分，但答案必须对。</p>
+  </div>
+</div>
+
+<h3>差异二：学习率（差 50 倍！）</h3>
+
+<p>这可能是最容易被忽视但最关键的细节：</p>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 预训练：大学习率，知识从零开始学</span>
+    <br>
+    --learning_rate <span class="number">5e-4</span>
+    <br>
+    <span class="comment"># 配合余弦退火调度</span>
+    <br>
+    <span class="keyword">def</span> <span class="func">get_lr</span>(current_step, total_steps, lr):
+    <br>
+    &nbsp;&nbsp;<span class="keyword">return</span> lr * (0.1 + 0.45 *
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;(1 + cos(π * current_step / total_steps)))
+    <br><br>
+    <span class="comment"># SFT：小学习率，只做微调</span>
+    <br>
+    --learning_rate <span class="number">1e-5</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么差 50 倍？</strong></p>
+    <p>预训练是从零开始，需要较大的步长在参数空间中快速移动。</p>
+    <p>SFT 时模型<strong>已经学会了很多知识</strong>，用大 lr 会"冲掉"之前的记忆。</p>
+    <p><strong>一个比喻</strong>：</p>
+    <p>预训练 ≈ 在空白画布上作画，用大刷子快速铺色块</p>
+    <p>SFT ≈ 在已经完成的画上精修细节，用小笔触微调</p>
+    <p>用大刷子去精修细节——那画面太美不敢看 😱</p>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠️ <strong>经验法则</strong>：SFT 的学习率一般比预训练 <strong>小 10 到 100 倍</strong>。
+  具体值取决于：预训练是否充分、SFT 数据量、模型规模。对于 MiniMind（~10M 参数），1e-5 是个安全的起点。
+</div>
+
+<h3>差异三：数据格式与序列长度</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+    <span class="comment"># 预训练：短文本，快速迭代</span>
+    <br>
+    --max_seq_len <span class="number">340</span>
+    <br>
+    --batch_size <span class="number">32</span>
+    <br><br>
+    <span class="comment"># 每条数据：纯文本直接截断</span>
+    <br>
+    tokens = tokenizer(text).input_ids
+    <br>
+    tokens = tokens[:max_length - 2]
+    <br>
+    tokens = [BOS] + tokens + [EOS]
+    <br><br>
+    <span class="comment"># SFT：对话长，需要更长序列</span>
+    <br>
+    --max_seq_len <span class="number">768</span>
+    <br>
+    --batch_size <span class="number">16</span>
+    <br><br>
+    <span class="comment"># 对话格式占 token 多</span>
+    <br>
+    <span class="comment"># &lt;user&gt;...&lt;/user&gt;&lt;asst&gt;...&lt;/asst&gt;</span>
+    <br>
+    <span class="comment"># 同样的文本，SFT 需要更多 token</span>
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么序列长度长了 2.3 倍？</strong></p>
+    <p>对话格式本身就要占 token：</p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li><code>&lt;user&gt;</code> 和 <code>&lt;/user&gt;</code> 各占 token</li>
+      <li><code>&lt;assistant&gt;</code> 和 <code>&lt;/assistant&gt;</code> 各占 token</li>
+      <li>多轮对话中这些标记会重复出现</li>
+    </ul>
+    <p><strong>同一个中文句子</strong>，用纯文本格式可能是 50 token，用对话格式可能要 70+ token。</p>
+    <p>这就是为什么 SFT 的 batch size 要减半——显存是有限的，序列越长，一次能放进去的样本越少。</p>
+  </div>
+</div>
+
+<h2>🎯 更深层的理解：两个训练阶段的分工</h2>
+
+<p>让我们用一个更宏观的视角来看 Pretrain 和 SFT 的关系：</p>
+
+<div style="background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 16px; padding: 24px; margin: 24px 0;">
+  <h3 style="margin-top:0;">🏗️ 二阶段训练架构</h3>
+  
+  <div style="display:flex; gap:16px; margin:20px 0; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px; background: #dbeafe; border-radius: 12px; padding: 20px; text-align:center;">
+      <div style="font-size:2rem; margin-bottom:8px;">🔧</div>
+      <h4 style="margin:0 0 8px;">阶段一：预训练</h4>
+      <p style="font-size:0.9rem; margin:0;">学习知识</p>
+      <p style="font-size:0.8rem; color:var(--text-muted);">让模型"博学"</p>
+    </div>
+    <div style="flex:1; min-width:200px; background: #fef3c7; border-radius: 12px; padding: 20px; text-align:center;">
+      <div style="font-size:2rem; margin-bottom:8px;">💬</div>
+      <h4 style="margin:0 0 8px;">阶段二：SFT</h4>
+      <p style="font-size:0.9rem; margin:0;">学习对话</p>
+      <p style="font-size:0.8rem; color:var(--text-muted);">让模型"会说话"</p>
+    </div>
+  </div>
+
+  <p><strong>关键 insight：</strong></p>
+  <ul>
+    <li>预训练给了模型 <strong>what to say</strong>（说什么）—— 知识、语法、推理能力</li>
+    <li>SFT 给了模型 <strong>how to say</strong>（怎么说）—— 对话格式、指令遵循、有用性</li>
+    <li>两者<strong>缺一不可</strong>：只有预训练 = 博学的书呆子；只有 SFT = 话多但没有内容的空壳子</li>
+  </ul>
+</div>
+
+<h2>🧪 一个思想实验</h2>
+
+<p>如果我们在 MiniMind 上做以下实验，会观察到什么？</p>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:20px 0;">
+  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
+    <h4 style="margin:0 0 8px; color:#15803d;">✅ 正确做法</h4>
+    <p style="font-size:0.9rem; margin:0;">预训练 10GB 数据 → SFT 10MB 对话数据</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">✅ 模型能回答问题，且回答有内容</p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="margin:0 0 8px; color:#dc2626;">❌ 缺少预训练</h4>
+    <p style="font-size:0.9rem; margin:0;">随机初始化 → 直接 SFT 10MB 数据</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">❌ 模型只能机械背诵对话模板，内容空洞</p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="margin:0 0 8px; color:#dc2626;">❌ 缺少 SFT</h4>
+    <p style="font-size:0.9rem; margin:0;">预训练 10GB → 直接推理</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">❌ 模型不会对话格式，只会"续写"</p>
+  </div>
+  <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+    <h4 style="margin:0 0 8px; color:#dc2626;">❌ 过多 SFT</h4>
+    <p style="font-size:0.9rem; margin:0;">预训练 10GB → SFT 10GB（循环 10 epoch）</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">❌ 模型过拟合，只记得对话模板，忘了知识</p>
+  </div>
+</div>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <p><strong>Pretrain vs SFT 的核心区别，一句话版：</strong></p>
+  <blockquote style="border-left:3px solid var(--primary); padding-left:16px; margin:12px 0; font-style:italic;">
+    "Pretrain 教模型 <strong>知识</strong>，SFT 教模型 <strong>礼貌</strong>。模型先得有知识可讲，再学怎么讲得礼貌。"
+  </blockquote>
+</div>
+
+<div class="tip">
+  <p><strong>三个数字记住区别：</strong></p>
+  <ul>
+    <li><strong>50x</strong>：SFT 学习率是预训练的 1/50（5e-4 → 1e-5）</li>
+    <li><strong>1000x+</strong>：SFT 数据量是预训练的 1/1000 甚至更少</li>
+    <li><strong>2.3x</strong>：SFT 序列长度是预训练的 2.3 倍（340 → 768）</li>
+  </ul>
+</div>
+
+<div class="warn">
+  🤔 <strong>思考题</strong>：如果我想让模型学会<strong>新的知识</strong>（比如 2025 年的新闻），应该用 SFT 还是继续预训练？
+  <br><br>
+  <details>
+    <summary style="cursor:pointer;color:var(--primary);font-weight:600;">💡 点击查看答案</summary>
+    <p style="margin-top:12px;"><strong>应该继续预训练（或者说"增量预训练"）。</strong></p>
+    <p>SFT 擅长的是教模型<strong>行为方式</strong>（对话格式、指令遵循），而不是<strong>新知识</strong>。
+    用 SFT 去教新知识有两个问题：</p>
+    <ol>
+      <li><strong>效率低</strong>：SFT 数据量小，学不了太多新知识</li>
+      <li><strong>灾难性遗忘</strong>：SFT 的高重复率会让模型"忘记"之前学过的知识</li>
+    </ol>
+    <p>正确的做法是：先用新数据做<strong>增量预训练</strong>（用预训练一样的全序列 loss，但学习率更小），
+    然后再做 SFT 教模型"怎么回答关于新知识的问题"。</p>
+    <p>简单说：<strong>用 Pretrain 的方式"记"新知识，用 SFT 的方式"问"新知识。</strong></p>
+  </details>
+</div>
+
+<div class="nav-buttons">
+  <a href="10-sft-data-pipeline.html" class="nav-btn prev">← 上一章：SFT 数据构建</a>
+  <a href="12-sft-inference.html" class="nav-btn next">下一章：SFT 推理生成 →</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p>MiniMind 教程 · 第 11 章 · SFT vs Pretrain 对比</p>
+</div>
+
+</body>
+</html>
