@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>20 - PPO 原理与实现 | MiniMind 教程</title>
+<style>
+  :root { --primary: #2563eb; --primary-light: #dbeafe; --accent: #f59e0b; --bg: #ffffff; --bg-card: #f8fafc; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .top-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  .top-nav a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .top-nav a:hover { text-decoration: underline; }
+  .top-nav .title { font-weight: 600; font-size: 0.95rem; margin-left: auto; color: var(--text-muted); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+  h2 { font-size: 1.4rem; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary); }
+  p { margin-bottom: 16px; }
+  ul, ol { margin: 12px 0 20px 24px; }
+  li { margin-bottom: 8px; }
+  .review-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  .review-box h3 { color: #0369a1; margin-top: 0; }
+  .code-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 768px) { .code-panel { grid-template-columns: 1fr; } }
+  .code-panel .code-side { background: var(--code-bg); color: var(--code-text); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; }
+  .code-panel .code-side .comment { color: #94a3b8; }
+  .code-panel .code-side .keyword { color: #818cf8; }
+  .code-panel .code-side .string { color: #34d399; }
+  .code-panel .code-side .number { color: #f472b6; }
+  .code-panel .code-side .func { color: #60a5fa; }
+  .code-panel .explain-side { background: var(--bg-card); padding: 20px; font-size: 0.92rem; }
+  .code-panel .explain-side p { margin-bottom: 10px; }
+  .code-panel .explain-side .highlight { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+  .compare-table th, .compare-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: var(--primary); color: #fff; font-weight: 600; }
+  .compare-table tr:nth-child(even) { background: var(--bg-card); }
+  .compare-table tr:hover { background: var(--primary-light); }
+  .tip { background: #f0fdf4; border-left: 4px solid var(--success); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid var(--danger); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 16px 0; }
+  .nav-buttons { display: flex; justify-content: space-between; margin: 40px 0; }
+  .nav-btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+  .nav-btn.prev { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+  .nav-btn.next { background: var(--primary); color: #fff; }
+  .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .math { font-style: italic; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; }
+  .formula-box { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; font-size: 1.05rem; }
+
+  .actor-critic { display: flex; align-items: flex-start; gap: 24px; margin: 24px 0; flex-wrap: wrap; justify-content: center; }
+  .actor-critic .box { flex: 1; min-width: 200px; border: 2px solid; border-radius: 12px; padding: 20px; text-align: center; }
+  .actor-critic .box.actor { border-color: var(--primary); background: #f0f9ff; }
+  .actor-critic .box.critic { border-color: var(--accent); background: #fffbeb; }
+  .actor-critic .box.ref { border-color: #94a3b8; background: #f8fafc; }
+  .actor-critic .box.rm { border-color: var(--success); background: #f0fdf4; }
+  .actor-critic .box .name { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+  .actor-critic .box .name.actor-name { color: var(--primary); }
+  .actor-critic .box .name.critic-name { color: var(--accent); }
+
+  .footer { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="index.html">🏠 首页</a>
+  <a href="19-dpo-theory.html">← 上一章</a>
+  <a href="21-grpo-theory.html">下一章 →</a>
+  <span class="title">第 20 章 · PPO 原理与实现</span>
+</div>
+<div class="container">
+
+<h1>🔄 PPO 原理与实现</h1>
+<p class="subtitle">Proximal Policy Optimization——RLHF 的"老大哥"，InstructGPT/ChatGPT 的核心算法</p>
+
+<div class="review-box">
+  <h3>📖 前情回顾</h3>
+  <ul>
+    <li>DPO 通过偏好数据直接优化，省去了 RM 和 PPO</li>
+    <li>但 PPO 才是 RLHF 的"正统"方式——它需要先训练一个 Reward Model</li>
+    <li>PPO 的核心思想：<strong>让模型生成的回答获得更高的奖励，同时又不要太偏离 SFT</strong></li>
+  </ul>
+</div>
+
+<h2>🏛️ PPO 的四位"演员"</h2>
+
+<p>PPO 在训练时需要同时维护<strong>4 个模型</strong>！这是它显存消耗大的根本原因：</p>
+
+<div class="actor-critic">
+  <div class="box actor">
+    <div class="name actor-name">🎭 Actor</div>
+    <p style="font-size:0.85rem;">策略模型（Policy）<br>我们真正要训练的模型<br>负责生成回答</p>
+  </div>
+  <div class="box critic">
+    <div class="name critic-name">📊 Critic</div>
+    <p style="font-size:0.85rem;">价值网络（Value）<br>预测状态的价值<br>辅助 PPO 计算优势函数</p>
+  </div>
+  <div class="box ref">
+    <div class="name" style="color:#475569;">📖 Ref</div>
+    <p style="font-size:0.85rem;">参考模型<br>冻结的 SFT 模型<br>计算 KL 散度约束</p>
+  </div>
+  <div class="box rm">
+    <div class="name" style="color:#15803d;">🏆 RM</div>
+    <p style="font-size:0.85rem;">奖励模型<br>给回答打分的模型<br>训练好的，冻结的</p>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠️ <strong>显存占用</strong>：4 个模型 ≈ 4x 模型大小的显存。这就是为什么 PPO 训练非常"吃"显存。
+  如果 MiniMind 有 10M 参数，4 个模型就是 40M 参数，每个参数如果用 float16 就是 80MB——看起来不大，
+  但别忘了还有梯度、优化器状态、activation！实际占用会大很多。
+</div>
+
+<h2>🎯 PPO 的核心公式</h2>
+
+<p>PPO 的优化目标可以分为三部分：</p>
+
+<div class="formula-box">
+  <strong>目标 = Policy Loss + Value Loss + KL Penalty</strong><br><br>
+  <span class="math">L<sup>CLIP</sup>(θ) = E[min(r(θ) · A, clip(r(θ), 1-ε, 1+ε) · A)]</span><br>
+  <span class="math">L<sup>VF</sup>(φ) = E[(V<sub>φ</sub>(s) - V<sub>target</sub>(s))²]</span><br>
+  <span class="math">L<sup>KL</sup> = β · KL(π<sub>ref</sub> || π<sub>θ</sub>)</span>
+</div>
+
+<p>其中：</p>
+<ul>
+  <li><span class="math">r(θ) = π<sub>θ</sub>(a|s) / π<sub>old</sub>(a|s)</span> = 重要性采样比率（新旧策略的概率比）</li>
+  <li><span class="math">A</span> = 优势函数（GAE 计算）</li>
+  <li><span class="math">ε</span> = clip 范围（默认 0.2）——核心超参数</li>
+  <li><span class="math">V<sub>φ</sub>(s)</span> = Critic 网络输出的状态价值</li>
+</ul>
+
+<h2>🚶 PPO 训练流程（一句话版）</h2>
+
+<ol>
+  <li><strong>Rollout</strong>：Actor 模型生成一批回答</li>
+  <li><strong>打分</strong>：Reward Model 给每个回答打分</li>
+  <li><strong>GAE</strong>：用 Critic 网络计算"优势函数"（这个 token 比预期好多少？）</li>
+  <li><strong>PPO Update</strong>：用 clip 过的 loss 更新 Actor 和 Critic</li>
+  <li><strong>KL 约束</strong>：确保 Actor 不比 SFT 模型差太多</li>
+  <li>重复 1-5，直到收敛</li>
+</ol>
+
+<h2>🔍 逐段代码解读</h2>
+
+<h3>1. CriticModel：继承自 MiniMind 的"价值网络"</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">class</span> CriticModel(MiniMindForCausalLM):
+    <span class="keyword">def</span> __init__(self, params):
+        <span class="keyword">super</span>().__init__(params)
+        <span class="comment"># 替换 lm_head 为价值输出</span>
+        self.value_head = nn.Linear(
+            params.hidden_size, 1
+        )
+
+    <span class="keyword">def</span> forward(self, input_ids, **kwargs):
+        outputs = self.model(input_ids)
+        hidden_states = self.model.norm(outputs[0])
+        <span class="comment"># 对每个 token 输出一个价值</span>
+        values = self.value_head(hidden_states)
+        <span class="keyword">return</span> values.squeeze(-1)
+  </div>
+  <div class="explain-side">
+    <p><strong>关键区别</strong>：CriticModel 和 ActorModel 共享相同的 Transformer 架构，但最后一层不同：</p>
+    <ul style="margin:0;font-size:0.88rem;">
+      <li>Actor 的 lm_head：vocab_size 维（预测下一个 token）</li>
+      <li>Critic 的 value_head：1 维（预测当前状态的价值）</li>
+    </ul>
+    <p>Critic 的任务：判断"到目前为止的生成，最终能得到多少奖励？"</p>
+  </div>
+</div>
+
+<h3>2. GAE（Generalized Advantage Estimation）——优势函数计算</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># GAE 计算：从后往前推</span>
+lastgaelam = torch.zeros(B, device=device)
+advs_rev = []
+<span class="keyword">for</span> t <span class="keyword">in</span> reversed(range(gen_len)):
+    <span class="comment"># 下一个状态的价值</span>
+    nv = old_resp_values[:, t + 1] \
+         <span class="keyword">if</span> t &lt; gen_len - 1 <span class="keyword">else</span> 0.0
+
+    <span class="comment"># TD 误差（时序差分）</span>
+    delta = token_rewards[:, t] \
+            + args.gamma * nv \
+            - old_resp_values[:, t]
+
+    <span class="comment"># GAE 累积</span>
+    lastgaelam = delta \
+                 + args.gamma * args.lam * lastgaelam
+    advs_rev.append(lastgaelam)
+
+advantages = torch.stack(advs_rev[::-1], dim=1)
+  </div>
+  <div class="explain-side">
+    <p><strong>GAE 的核心思想：</strong></p>
+    <p>每个 token 位置的"优势" = 当前奖励 + 未来价值 - 当前价值。</p>
+    <p><span class="math">A<sub>t</sub> = δ<sub>t</sub> + γ·λ·δ<sub>t+1</sub> + (γ·λ)²·δ<sub>t+2</sub> + ...</span></p>
+    <p>其中 <span class="math">δ<sub>t</sub> = r<sub>t</sub> + γ·V(s<sub>t+1</sub>) - V(s<sub>t</sub>)</span></p>
+    <p><strong>一个比喻</strong>：GAE 就像<strong>用一个加权平均的望远镜</strong>来看每一步的好坏——
+    λ 控制你看多远（λ=0 只看眼前，λ=1 看整个未来）。</p>
+  </div>
+</div>
+
+<h3>3. PPO-Clip：核心的 Policy Loss</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 重要性采样比率</span>
+ratio = torch.exp(log_ratio)
+
+<span class="comment"># PPO-Clip 策略损失</span>
+policy_loss = -torch.min(
+    <span class="comment"># 未 clip 的 loss</span>
+    advantages * ratio,
+    <span class="comment"># clip 过的 loss</span>
+    advantages * torch.clamp(
+        ratio,
+        1.0 - args.clip_epsilon,
+        1.0 + args.clip_epsilon
+    )
+)
+
+<span class="comment"># Value Loss（带 clip）</span>
+value_loss = 0.5 * torch.max(
+    (values - returns) ** 2,
+    (clipped_values - returns) ** 2
+)
+  </div>
+  <div class="explain-side">
+    <p><strong>PPO-Clip 的核心思想</strong>：</p>
+    <p>我们希望增大好 token 的概率、减小差 token 的概率。但<strong>不能改得太猛</strong>——否则训练会不稳定。</p>
+    <p>Clip 的作用：如果 ratio 超出 [0.8, 1.2]（ε=0.2），就"截断"梯度，防止一步更新过大。</p>
+    <p><strong>一个比喻</strong>：你走路时每一步不能迈太大——迈太大了容易摔倒（训练崩溃）。PPO-Clip 给你设了一个"步长上限"。</p>
+  </div>
+</div>
+
+<h3>4. 奖励函数——不只是 RM 的分数</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="keyword">def</span> calculate_rewards(prompts, responses, reward_model):
+    <span class="keyword">for</span> i, (prompt, response) <span class="keyword">in</span> enumerate(zip(prompts, responses)):
+        <span class="comment"># 长度奖励</span>
+        <span class="keyword">if</span> 20 &lt;= len(response) &lt;= 800:
+            rewards[i] += 0.5
+        <span class="keyword">else</span>:
+            rewards[i] -= 0.5
+
+        <span class="comment"># thinking 奖励（如果有思考链）</span>
+        <span class="keyword">if</span> ' response' <span class="keyword">in</span> response:
+            thinking, answer = response.split(' response')
+            <span class="keyword">if</span> 20 &lt;= len(thinking) &lt;= 300:
+                rewards[i] += 1.0
+
+        <span class="comment"># 重复惩罚</span>
+        rewards[i] -= rep_penalty(answer)
+
+        <span class="comment"># RM 分数</span>
+        score = reward_model.get_score(messages, answer)
+        rewards[i] += score
+  </div>
+  <div class="explain-side">
+    <p><strong>PPO 的奖励不是单一的！</strong></p>
+    <p>它由多个部分组成：</p>
+    <ol style="margin:0;font-size:0.88rem;">
+      <li><strong>长度奖励</strong>：太长或太短都扣分，鼓励适中的回答</li>
+      <li><strong>思考链奖励</strong>：如果模型显式地展示了推理过程，加分</li>
+      <li><strong>重复惩罚</strong>：如果回答有大量重复，扣分</li>
+      <li><strong>RM 分数</strong>：Reward Model 对回答的综合评分</li>
+    </ol>
+    <p>这种"组合奖励"的设计是 RLHF 工程实践的精髓！</p>
+  </div>
+</div>
+
+<h3>5. 早停机制：防止 KL 爆炸</h3>
+
+<div class="code-panel">
+  <div class="code-side">
+<span class="comment"># 近似 KL 散度</span>
+approx_kl = 0.5 * (log_ratio ** 2)
+<span class="keyword">if</span> approx_kl &gt; args.early_stop_kl:
+    stop_ppo = True
+    <span class="comment"># 截断 loss，但保持 DDP 通信</span>
+    loss = (policy_loss + value_loss) * 0.0
+  </div>
+  <div class="explain-side">
+    <p><strong>为什么需要早停？</strong></p>
+    <p>当新旧策略差异太大时（KL 太大），重要性采样的<strong>方差会爆炸</strong>——估计就不准了。</p>
+    <p>这就像你根据 A 的成绩单（旧策略）来估算 B 的考试成绩（新策略）——如果 A 和 B 水平差太多，估算就不靠谱了。</p>
+  </div>
+</div>
+
+<h2>⚙️ 核心超参数</h2>
+
+<table class="compare-table">
+  <thead><tr><th>参数</th><th>MiniMind 默认值</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td>clip_epsilon (ε)</td><td>0.2</td><td>PPO-Clip 的范围，越大更新越激进</td></tr>
+    <tr><td>gamma (γ)</td><td>1.0</td><td>折扣因子，越大越考虑长远奖励</td></tr>
+    <tr><td>lam (λ)</td><td>0.95</td><td>GAE 的平滑系数，越大越考虑全局</td></tr>
+    <tr><td>kl_coef (β)</td><td>0.02</td><td>KL 惩罚系数，越大越保守</td></tr>
+    <tr><td>vf_coef</td><td>0.5</td><td>Value Loss 的权重</td></tr>
+    <tr><td>early_stop_kl</td><td>0.25</td><td>KL 超过此值停止更新</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 PPO vs DPO：关键对比</h2>
+
+<table class="compare-table">
+  <thead><tr><th>维度</th><th>DPO</th><th>PPO</th></tr></thead>
+  <tbody>
+    <tr><td>模型数量</td><td>2 个（Actor + Ref）</td><td>4 个（Actor + Critic + Ref + RM）</td></tr>
+    <tr><td>训练方式</td><td>离线（直接用偏好数据）</td><td>在线（需要 rollout 生成回答）</td></tr>
+    <tr><td>奖励信号</td><td>隐式的（从偏好对推导）</td><td>显式的（RM 打分 + 规则）</td></tr>
+    <tr><td>可组合性</td><td>只能做偏好对齐</td><td>可以和任意奖励函数组合</td></tr>
+    <tr><td>实现复杂度</td><td>低</td><td>高（GAE + Clip + 早停 + ...）</td></tr>
+  </tbody>
+</table>
+
+<h2>📝 本章小结</h2>
+
+<div class="tip">
+  <ol>
+    <li><strong>PPO 需要 4 个模型</strong>：Actor + Critic + Ref + RM，显存消耗大</li>
+    <li><strong>GAE</strong>：用 TD 误差的加权和计算每个 token 的"优势"</li>
+    <li><strong>PPO-Clip</strong>：裁剪重要性采样比率，防止单步更新过大</li>
+    <li><strong>组合奖励</strong>：长度 + 思考链 + 重复惩罚 + RM 分数</li>
+    <li><strong>早停机制</strong>：KL 太大时停止更新，防止策略崩坏</li>
+    <li><strong>MiniMind 实现</strong>：train_ppo.py + CriticModel + calculate_rewards</li>
+  </ol>
+</div>
+
+<div class="nav-buttons">
+  <a href="19-dpo-theory.html" class="nav-btn prev">← 上一章：DPO</a>
+  <a href="21-grpo-theory.html" class="nav-btn next">下一章：GRPO 原理与实现 →</a>
+</div>
+</div>
+<div class="footer"><p>MiniMind 教程 · 第 20 章 · PPO 原理与实现</p></div>
+</body>
+</html>
